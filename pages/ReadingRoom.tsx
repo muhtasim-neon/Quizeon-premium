@@ -1,0 +1,136 @@
+import React, { useState } from 'react';
+import { GlassCard, Button, Badge } from '../components/UI';
+import { BookOpen, RefreshCw, Wand2, HelpCircle } from 'lucide-react';
+import { aiService } from '../services/aiService';
+import { StoryContent } from '../types';
+
+export const ReadingRoom: React.FC = () => {
+  const [topic, setTopic] = useState('School Life');
+  const [story, setStory] = useState<StoryContent | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showEnglish, setShowEnglish] = useState(false);
+
+  const topics = ['School Life', 'Shopping', 'Travel to Tokyo', 'Cooking', 'Anime Club', 'Rainy Day'];
+
+  const generate = async (selectedTopic: string) => {
+    setLoading(true);
+    setStory(null);
+    setShowEnglish(false);
+    try {
+        const data = await aiService.generateStory(selectedTopic);
+        setStory(data);
+    } catch (e) {
+        alert("Failed to generate story");
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Reading Room</h1>
+            <p className="text-slate-400">AI-generated N5 stories to boost comprehension.</p>
+        </div>
+      </div>
+
+      {!story && !loading && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
+            {topics.map(t => (
+                <GlassCard 
+                    key={t} 
+                    hoverEffect 
+                    onClick={() => { setTopic(t); generate(t); }}
+                    className="flex flex-col items-center justify-center py-10 cursor-pointer border-primary/20 group"
+                >
+                    <BookOpen size={32} className="mb-4 text-slate-400 group-hover:text-primary transition-colors" />
+                    <h3 className="text-lg font-bold text-white">{t}</h3>
+                </GlassCard>
+            ))}
+          </div>
+      )}
+
+      {loading && (
+          <GlassCard className="flex flex-col items-center justify-center py-20 text-center">
+              <RefreshCw size={48} className="animate-spin text-primary mb-6" />
+              <h3 className="text-xl font-bold text-white">Writing a story about {topic}...</h3>
+              <p className="text-slate-400 mt-2">Consulting the AI Sensei...</p>
+          </GlassCard>
+      )}
+
+      {story && (
+          <div className="animate-fade-in space-y-6">
+              <div className="flex gap-2">
+                 <Button variant="ghost" onClick={() => setStory(null)}>Back to Topics</Button>
+                 <Button variant="secondary" onClick={() => generate(topic)}><RefreshCw size={16} /> Regenerate</Button>
+              </div>
+
+              {/* Story Card */}
+              <GlassCard className="border-primary/30">
+                  <div className="flex justify-between items-start mb-6">
+                      <h2 className="text-3xl font-bold text-white font-jp">{story.title}</h2>
+                      <Button variant="secondary" size="sm" onClick={() => setShowEnglish(!showEnglish)}>
+                          {showEnglish ? 'Hide Translation' : 'Show Translation'}
+                      </Button>
+                  </div>
+                  
+                  <div className="text-2xl leading-loose font-jp mb-8 text-slate-200">
+                      {story.japanese}
+                  </div>
+
+                  {showEnglish && (
+                      <div className="p-4 bg-white/5 rounded-xl text-slate-300 italic mb-8 animate-fade-in border-l-4 border-primary">
+                          {story.english}
+                      </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/10">
+                      {/* Vocab */}
+                      <div>
+                          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><BookOpen size={18} /> Key Vocabulary</h3>
+                          <ul className="space-y-2">
+                              {story.vocab.map((v, i) => (
+                                  <li key={i} className="flex justify-between text-sm bg-black/20 p-2 rounded">
+                                      <span className="text-primary font-bold">{v.word}</span>
+                                      <span className="text-slate-400">{v.meaning}</span>
+                                  </li>
+                              ))}
+                          </ul>
+                      </div>
+
+                      {/* Comprehension Quiz */}
+                      <div>
+                          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><HelpCircle size={18} /> Quick Quiz</h3>
+                          <div className="space-y-4">
+                              {story.quiz.map((q, i) => (
+                                  <div key={i} className="bg-white/5 p-3 rounded-xl">
+                                      <p className="text-sm text-white mb-2 font-bold">{q.question}</p>
+                                      <div className="flex gap-2 flex-wrap">
+                                          {q.options.map((opt, oi) => (
+                                              <button 
+                                                key={oi} 
+                                                className="px-3 py-1 rounded bg-black/40 text-xs hover:bg-primary hover:text-white transition-colors"
+                                                onClick={(e) => {
+                                                    if(opt === q.answer) {
+                                                        e.currentTarget.classList.add('!bg-green-500');
+                                                    } else {
+                                                        e.currentTarget.classList.add('!bg-red-500');
+                                                    }
+                                                }}
+                                              >
+                                                  {opt}
+                                              </button>
+                                          ))}
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  </div>
+              </GlassCard>
+          </div>
+      )}
+    </div>
+  );
+};
