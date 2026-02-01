@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Yuji+Syuku&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700;900&family=Yuji+Syuku&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -20,18 +20,26 @@
             },
             colors: {
               primary: {
-                DEFAULT: '#3a86ff',
-                light: '#5fa3ff',
-                dark: '#2667cc',
+                DEFAULT: 'var(--color-primary)',
+                light: '#60a5fa', // Blue 400
+                dark: '#2563eb',  // Blue 600
+                50: '#eff6ff',
+                100: '#dbeafe',
+                900: '#1e3a8a',
               },
               dark: {
-                bg: '#0f1419',
-                card: 'rgba(23, 25, 35, 0.95)',
+                bg: '#0f172a', // Slate 900
+                surface: '#1e293b', // Slate 800
+              },
+              light: {
+                bg: '#f8fafc', // Slate 50
+                surface: '#ffffff', // White
               }
             },
             animation: {
-              'blob': 'blob 7s infinite',
-              'fade-in': 'fadeIn 0.5s ease-out',
+              'blob': 'blob 10s infinite',
+              'fade-in': 'fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+              'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
             },
             keyframes: {
               blob: {
@@ -41,7 +49,11 @@
                 '100%': { transform: 'translate(0px, 0px) scale(1)' },
               },
               fadeIn: {
-                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
                 '100%': { opacity: '1', transform: 'translateY(0)' },
               }
             }
@@ -50,32 +62,102 @@
       }
     </script>
     <style>
-      body {
-        background-color: #0f1419;
-        color: #ffffff;
+      :root {
+        /* Default (Light Mode) - High Contrast & Clean */
+        --color-primary: #2563eb; /* Blue 600 - Stronger for light mode text */
+        --bg-body: #f8fafc;       /* Slate 50 */
+        --text-body: #0f172a;     /* Slate 900 */
+        --text-muted: #64748b;    /* Slate 500 */
+        
+        --glass-bg: #ffffff;
+        --glass-border: #e2e8f0;  /* Slate 200 */
+        --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
       }
-      .glass {
-        background: rgba(255, 255, 255, 0.05);
+
+      .dark {
+        /* Dark Mode - Deep & Glowing */
+        --color-primary: #60a5fa; /* Blue 400 - Lighter for dark mode legibility */
+        --bg-body: #0f172a;       /* Slate 900 */
+        --text-body: #f1f5f9;     /* Slate 100 */
+        --text-muted: #94a3b8;    /* Slate 400 */
+
+        --glass-bg: rgba(30, 41, 59, 0.65); /* Slate 800 transparent */
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+      }
+
+      body {
+        background-color: var(--bg-body);
+        color: var(--text-body);
+        font-family: 'Inter', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        transition: background-color 0.4s ease, color 0.3s ease;
+      }
+
+      /* Typography Enhancements */
+      h1, h2, h3, h4, h5, h6 {
+        letter-spacing: -0.025em; /* Tight tracking for modern feel */
+      }
+      
+      .font-jp {
+        font-family: 'Noto Sans JP', sans-serif;
+        letter-spacing: 0.05em;
+      }
+
+      /* Modern Card Styles */
+      .glass-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .dark .glass-card {
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
       }
-      .glass-card:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(58, 134, 255, 0.5);
-        transform: translateY(-2px);
+
+      /* Hover States */
+      body:not(.dark) .glass-card.hover-effect:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        border-color: #cbd5e1;
       }
+
+      .dark .glass-card.hover-effect:hover {
+        transform: translateY(-4px);
+        background: rgba(30, 41, 59, 0.85);
+        border-color: rgba(96, 165, 250, 0.3);
+        box-shadow: 0 0 25px rgba(59, 130, 246, 0.15);
+      }
+
+      /* Form Elements */
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover, 
+      input:-webkit-autofill:focus {
+        -webkit-text-fill-color: var(--text-body);
+        -webkit-box-shadow: 0 0 0px 1000px var(--glass-bg) inset;
+        transition: background-color 5000s ease-in-out 0s;
+      }
+
       /* Scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: rgba(15, 20, 25, 0.5);
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #3a86ff;
+        background: #cbd5e1;
         border-radius: 4px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #334155;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-primary);
       }
     </style>
   <script type="importmap">
@@ -89,7 +171,8 @@
     "clsx": "https://esm.sh/clsx@^2.1.1",
     "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.0",
     "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.3"
   }
 }
 </script>

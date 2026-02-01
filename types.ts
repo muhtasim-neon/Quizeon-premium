@@ -7,17 +7,43 @@ export interface User {
   avatar?: string;
   streak?: number;
   xp?: number;
+  email?: string;
+  // New fields for Admin Analytics
+  subscription: 'free' | 'premium';
+  joinedDate?: string;
+  lastActive?: string;
+  mostUsedSection?: string; // e.g., 'Arcade', 'Kanji', 'Reading'
+}
+
+export interface ContentAnalytics {
+  category: string;
+  views: number;
+  likes: number;
+  avgTimeSpent: string;
+  userRetention: number; // percentage
 }
 
 export interface LearningItem {
   id: string;
-  ja: string; // Japanese text (Kanji/Kana)
+  ja: string; // Japanese text (Kanji/Kana) or Grammar Rule
   romaji: string;
-  en: string; // English meaning
+  en: string; // English meaning or Explanation
   bn?: string; // Bengali meaning
-  type: 'vocab' | 'kanji' | 'grammar' | 'kana';
-  category?: string; // e.g., 'greetings', 'numbers', 'verbs'
+  type: 'vocab' | 'kanji' | 'grammar' | 'kana' | 'phrase' | 'conjugation' | 'counter' | 'number';
+  category?: string; // General category tag
+  
+  // Advanced Filtering Fields
+  lesson?: number; // Minna no Nihongo Lesson Number
+  variation?: 'basic' | 'dakuten' | 'youon'; // For Kana
+  group?: string; // For Counters/Numbers specific grouping (e.g. 'Machines', 'Time')
+
   audio?: string; // URL to audio
+  
+  // New optional fields for advanced data
+  usage?: string; // For counters/grammar
+  examples?: string; // For counters/grammar
+  synonym?: string;
+  antonym?: string;
 }
 
 export interface QuizQuestion {
@@ -73,6 +99,7 @@ export interface StoryContent {
   title: string;
   japanese: string;
   english: string;
+  bangla?: string; // Added field
   vocab: { word: string; meaning: string }[];
   quiz: { question: string; options: string[]; answer: string }[];
 }

@@ -1,24 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { GlassCard, Badge, Button } from '../components/UI';
-import { Users, Server, BookOpen, Activity, AlertCircle, CheckCircle2, Search, Download } from 'lucide-react';
+import { Users, Server, BookOpen, Activity, AlertCircle, CheckCircle2, Search, Download, TrendingUp, Clock, ThumbsUp } from 'lucide-react';
 import { dataService } from '../services/supabaseMock';
-import { ActivityLog } from '../types';
+import { ActivityLog, ContentAnalytics } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [contentAnalytics, setContentAnalytics] = useState<ContentAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [statsData, logsData] = await Promise.all([
+      const [statsData, logsData, analyticsData] = await Promise.all([
         dataService.getSystemStats(),
-        dataService.getRecentActivity()
+        dataService.getRecentActivity(),
+        dataService.getContentAnalytics()
       ]);
       setStats(statsData);
       setLogs(logsData as ActivityLog[]);
+      setContentAnalytics(analyticsData);
       setLoading(false);
     };
     fetchData();
@@ -162,6 +165,53 @@ export const AdminDashboard: React.FC = () => {
             ))}
           </div>
         </GlassCard>
+      </div>
+
+      {/* NEW SECTION: Content Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+         <GlassCard>
+            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><TrendingUp size={18} className="text-primary" /> Popular Content (Views)</h3>
+            <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={contentAnalytics} layout="vertical" margin={{ left: 40, right: 20 }}>
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="category" type="category" width={100} tick={{fill: '#94a3b8', fontSize: 12}} axisLine={false} tickLine={false} />
+                        <Tooltip 
+                            cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                        />
+                        <Bar dataKey="views" radius={[0, 4, 4, 0]} barSize={20}>
+                            {contentAnalytics.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={'#3a86ff'} />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+         </GlassCard>
+
+         <GlassCard>
+            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><Activity size={18} className="text-green-400" /> Engagement Metrics</h3>
+            <div className="space-y-4">
+                {contentAnalytics.slice(0, 5).map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                        <div className="flex-1">
+                            <h4 className="font-bold text-white text-sm">{item.category}</h4>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                                <span className="flex items-center gap-1"><Clock size={12} /> {item.avgTimeSpent}</span>
+                                <span className="flex items-center gap-1"><ThumbsUp size={12} /> {item.likes}</span>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                             <div className="text-xs text-slate-500 mb-1">Retention</div>
+                             <div className={`font-bold ${item.userRetention > 80 ? 'text-green-400' : 'text-yellow-400'}`}>
+                                 {item.userRetention}%
+                             </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+         </GlassCard>
       </div>
 
       {/* User Management Table Preview */}

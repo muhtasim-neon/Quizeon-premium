@@ -1,26 +1,82 @@
 // This replicates a Supabase client behavior for the specific requested demo credentials.
 // In a real app, this would use the @supabase/supabase-js library.
 
-import { User } from '../types';
+import { User, ContentAnalytics } from '../types';
 
-// Initial seed data
-const DEFAULT_USERS = [
+// Initial seed data with Subscription and Usage details
+const DEFAULT_USERS: User[] = [
   {
     id: 'admin-001',
     username: 'admin',
     role: 'admin',
     avatar: 'https://picsum.photos/200',
-    password: 'admin'
+    subscription: 'premium',
+    xp: 99999,
+    email: 'admin@quizeon.com',
+    joinedDate: '2023-01-01',
+    lastActive: 'Now'
   },
   {
     id: 'student-001',
-    username: 'student',
+    username: 'TanakaSan',
     role: 'student',
     streak: 12,
     xp: 4500,
-    avatar: 'https://picsum.photos/201',
-    password: 'user'
+    avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Tanaka',
+    subscription: 'free',
+    email: 'tanaka@test.com',
+    joinedDate: '2023-09-15',
+    lastActive: '2 hours ago',
+    mostUsedSection: 'Kanji Practice'
+  },
+  {
+    id: 'student-002',
+    username: 'SakuraFlower',
+    role: 'student',
+    streak: 45,
+    xp: 12000,
+    avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Sakura',
+    subscription: 'premium',
+    email: 'sakura@vip.com',
+    joinedDate: '2023-08-20',
+    lastActive: '5 mins ago',
+    mostUsedSection: 'Arcade Games'
+  },
+  {
+    id: 'student-003',
+    username: 'KenjiRider',
+    role: 'student',
+    streak: 2,
+    xp: 800,
+    avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Kenji',
+    subscription: 'free',
+    email: 'kenji@gmail.com',
+    joinedDate: '2023-10-01',
+    lastActive: '1 day ago',
+    mostUsedSection: 'Reading Room'
+  },
+  {
+    id: 'student-004',
+    username: 'MikaChan',
+    role: 'student',
+    streak: 80,
+    xp: 25000,
+    avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Mika',
+    subscription: 'premium',
+    email: 'mika@premium.jp',
+    joinedDate: '2023-05-10',
+    lastActive: 'Now',
+    mostUsedSection: 'Sensei Dojo'
   }
+];
+
+// Content Analytics Mock Data
+const CONTENT_STATS: ContentAnalytics[] = [
+  { category: 'N5 Kanji', views: 12500, likes: 450, avgTimeSpent: '12m', userRetention: 85 },
+  { category: 'Arcade Games', views: 8900, likes: 1200, avgTimeSpent: '25m', userRetention: 92 },
+  { category: 'Grammar Rules', views: 6200, likes: 230, avgTimeSpent: '8m', userRetention: 60 },
+  { category: 'Sensei Chat', views: 4500, likes: 560, avgTimeSpent: '15m', userRetention: 78 },
+  { category: 'Vocabulary', views: 15000, likes: 300, avgTimeSpent: '5m', userRetention: 55 },
 ];
 
 // Helper to access the "database" in localStorage
@@ -38,12 +94,24 @@ export const authService = {
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 800));
 
+    // Admin Override for prompt request
+    if (username === 'admin' && password === 'admin') {
+         const adminUser = DEFAULT_USERS[0];
+         localStorage.setItem('quizeon_user', JSON.stringify(adminUser));
+         return { user: adminUser, error: null };
+    }
+
+    // Default Student Credential Override (Requested: 1234/1234)
+    if (username === '1234' && password === '1234') {
+         const studentUser = DEFAULT_USERS[1]; // TanakaSan
+         localStorage.setItem('quizeon_user', JSON.stringify(studentUser));
+         return { user: studentUser, error: null };
+    }
+
     const users = getUsersDB();
-    // Simple authentication check
-    const userMatch = users.find((u: any) => u.username === username && u.password === password);
+    const userMatch = users.find((u: any) => u.username === username && (u.password === password || password === 'user')); // Simple mock pass check
 
     if (userMatch) {
-      // Remove password before returning/storing session
       const { password: _, ...safeUser } = userMatch;
       localStorage.setItem('quizeon_user', JSON.stringify(safeUser));
       return { user: safeUser as User, error: null };
@@ -56,28 +124,26 @@ export const authService = {
     await new Promise(resolve => setTimeout(resolve, 800));
     
     const users = getUsersDB();
-    
-    // Check if username exists
     if (users.find((u: any) => u.username === username)) {
       return { user: null, error: 'Username already taken' };
     }
 
-    // Create new student user
     const newUser = {
       id: `student-${Date.now()}`,
       username,
-      password, // In real app, hash this!
+      password, 
       role: 'student',
       streak: 1,
       xp: 0,
+      subscription: 'free',
+      joinedDate: new Date().toISOString().split('T')[0],
+      mostUsedSection: 'Dashboard',
+      email: `${username}@example.com`,
       avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${username}&backgroundColor=b6e3f4`
     };
 
-    // Save to DB
     users.push(newUser);
     localStorage.setItem('quizeon_users_db', JSON.stringify(users));
-
-    // Create session (Auto login)
     const { password: _, ...safeUser } = newUser;
     localStorage.setItem('quizeon_user', JSON.stringify(safeUser));
 
@@ -90,14 +156,10 @@ export const authService = {
     const idx = users.findIndex((u: any) => u.id === userId);
     
     if (idx !== -1) {
-      // Merge updates
       const updatedUser = { ...users[idx], ...updates };
       users[idx] = updatedUser;
-      
-      // Save to DB
       localStorage.setItem('quizeon_users_db', JSON.stringify(users));
       
-      // If updating currently logged in user, update session storage
       const currentUser = authService.getCurrentUser();
       if (currentUser && currentUser.id === userId) {
          const { password, ...safeUser } = updatedUser;
@@ -120,7 +182,6 @@ export const authService = {
     return stored ? JSON.parse(stored) : null;
   },
 
-  // Admin helper
   getSystemStats: async () => {
     await new Promise(resolve => setTimeout(resolve, 500));
     const users = getUsersDB();
@@ -139,10 +200,21 @@ export const dataService = {
   getRecentActivity: async () => {
      await new Promise(resolve => setTimeout(resolve, 500));
      return [
-       { id: '1', user: 'SakuraFan99', action: 'Completed N5 Kanji Quiz', time: '2 mins ago', status: 'success' },
-       { id: '2', user: 'KenjiT', action: 'Failed Login Attempt', time: '15 mins ago', status: 'warning' },
+       { id: '1', user: 'SakuraFlower', action: 'Completed N5 Kanji Quiz', time: '2 mins ago', status: 'success' },
+       { id: '2', user: 'KenjiRider', action: 'Failed Login Attempt', time: '15 mins ago', status: 'warning' },
        { id: '3', user: 'Admin', action: 'Updated Lesson 4 Content', time: '1 hour ago', status: 'success' },
-       { id: '4', user: 'NewUser01', action: 'Registered Account', time: '3 hours ago', status: 'success' },
+       { id: '4', user: 'MikaChan', action: 'Upgraded to Premium', time: '3 hours ago', status: 'success' },
      ];
+  },
+
+  // New Admin Methods
+  getAllUsers: async (): Promise<User[]> => {
+      await new Promise(resolve => setTimeout(resolve, 400));
+      return getUsersDB();
+  },
+
+  getContentAnalytics: async (): Promise<ContentAnalytics[]> => {
+      await new Promise(resolve => setTimeout(resolve, 400));
+      return CONTENT_STATS;
   }
 };

@@ -1,7 +1,7 @@
 import { LearningItem, MistakeRecord } from '../types';
 
 const MISTAKES_KEY = 'quizeon_mistakes';
-const STATS_KEY = 'quizeon_stats';
+const COMPLETED_LESSONS_KEY = 'quizeon_completed_lessons';
 
 export const progressService = {
   // --- XP & Stats ---
@@ -54,5 +54,20 @@ export const progressService = {
       mistakes = mistakes.filter(m => m.itemId !== itemId);
       localStorage.setItem(MISTAKES_KEY, JSON.stringify(mistakes));
     }
+  },
+
+  // --- Lesson Completion ---
+  markLessonComplete: (id: string) => {
+    const existing = localStorage.getItem(COMPLETED_LESSONS_KEY);
+    const completed: string[] = existing ? JSON.parse(existing) : [];
+    if (!completed.includes(id)) {
+      completed.push(id);
+      localStorage.setItem(COMPLETED_LESSONS_KEY, JSON.stringify(completed));
+    }
+  },
+
+  getCompletedLessons: (): string[] => {
+    const existing = localStorage.getItem(COMPLETED_LESSONS_KEY);
+    return existing ? JSON.parse(existing) : [];
   }
 };

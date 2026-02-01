@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { GlassCard, Button, Input } from '../components/UI';
 import { User } from '../types';
 import { authService } from '../services/supabaseMock';
-import { User as UserIcon, Save, RefreshCw, Loader2, Shield } from 'lucide-react';
+import { User as UserIcon, Save, RefreshCw, Loader2, Shield, Calendar, Clock } from 'lucide-react';
 
 interface ProfileProps {
   user: User;
@@ -88,6 +88,20 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
                         <label className="block text-sm font-medium text-slate-400 mb-1">User ID</label>
                         <div className="text-white font-mono text-xs truncate opacity-70">
                             {user.id}
+                        </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <label className="block text-sm font-medium text-slate-400 mb-1">Joined Date</label>
+                        <div className="flex items-center gap-2 text-white font-mono text-sm">
+                            <Calendar size={16} className="text-blue-400" />
+                            <span>{user.joinedDate || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <label className="block text-sm font-medium text-slate-400 mb-1">Last Active</label>
+                        <div className="flex items-center gap-2 text-white font-mono text-sm">
+                            <Clock size={16} className="text-green-400" />
+                            <span>{user.lastActive || 'Now'}</span>
                         </div>
                     </div>
                 </div>

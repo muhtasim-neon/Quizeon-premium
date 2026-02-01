@@ -18,7 +18,7 @@ export const SenseiDojo: React.FC = () => {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input || !input.trim()) return;
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text: input, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
@@ -81,7 +81,7 @@ export const SenseiDojo: React.FC = () => {
                     onChange={(e) => setInput(e.target.value)}
                     disabled={loading}
                 />
-                <Button type="submit" disabled={loading || !input.trim()} className="px-6">
+                <Button type="submit" disabled={loading || !input || !input.trim()} className="px-6">
                     {loading ? <Loader2 className="animate-spin" /> : <Send size={20} />}
                 </Button>
             </form>
