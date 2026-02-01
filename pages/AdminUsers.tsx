@@ -24,8 +24,8 @@ export const AdminUsers: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">User Management</h1>
-          <p className="text-slate-400">Monitor student progress, subscriptions, and behavior.</p>
+          <h1 className="text-3xl font-bold text-ink mb-2">User Management</h1>
+          <p className="text-bamboo">Monitor student progress, subscriptions, and behavior.</p>
         </div>
         <div className="flex gap-2">
             <Button 
@@ -54,58 +54,58 @@ export const AdminUsers: React.FC = () => {
 
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
+        <Search className="absolute left-4 top-3.5 text-bamboo w-5 h-5" />
         <input 
             type="text"
             placeholder="Search by username or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-primary transition-all"
+            className="w-full bg-white/40 border border-bamboo/20 rounded-xl pl-12 pr-4 py-3 text-ink focus:outline-none focus:border-hanko transition-all"
         />
       </div>
 
       {/* Users List */}
       <div className="grid grid-cols-1 gap-4">
         {filteredUsers.map(user => (
-            <GlassCard key={user.id} className="flex flex-col md:flex-row items-center gap-6 p-6 group hover:border-primary/30 transition-all">
+            <GlassCard key={user.id} className="flex flex-col md:flex-row items-center gap-6 p-6 group hover:border-hanko/30 transition-all">
                 {/* Avatar & Basic Info */}
                 <div className="flex items-center gap-4 w-full md:w-1/3">
                     <div className="relative">
-                        <img src={user.avatar} alt={user.username} className="w-16 h-16 rounded-full bg-slate-700 object-cover border-2 border-white/10" />
+                        <img src={user.avatar} alt={user.username} className="w-16 h-16 rounded-full bg-rice object-cover border-2 border-bamboo/20" />
                         {user.subscription === 'premium' && (
-                            <div className="absolute -top-1 -right-1 bg-yellow-500 text-black p-1 rounded-full shadow-lg">
+                            <div className="absolute -top-1 -right-1 bg-straw text-white p-1 rounded-full shadow-lg">
                                 <Crown size={12} fill="currentColor" />
                             </div>
                         )}
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-white">{user.username}</h3>
-                        <div className="flex items-center gap-2 text-slate-400 text-sm">
+                        <h3 className="text-xl font-bold text-ink">{user.username}</h3>
+                        <div className="flex items-center gap-2 text-bamboo text-sm">
                             <Mail size={12} /> {user.email || 'No email'}
                         </div>
-                        <div className="flex items-center gap-2 text-slate-500 text-xs mt-1">
+                        <div className="flex items-center gap-2 text-bamboo/70 text-xs mt-1">
                             <Calendar size={12} /> Joined: {user.joinedDate || 'N/A'}
                         </div>
                     </div>
                 </div>
 
                 {/* Stats & Behavior */}
-                <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-4 w-full border-t md:border-t-0 md:border-l border-white/10 md:pl-6 pt-4 md:pt-0">
+                <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-4 w-full border-t md:border-t-0 md:border-l border-bamboo/10 md:pl-6 pt-4 md:pt-0">
                     <div>
-                        <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Plan</div>
-                        <Badge color={user.subscription === 'premium' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-slate-500/20 text-slate-400'}>
+                        <div className="text-xs text-bamboo uppercase font-bold tracking-wider">Plan</div>
+                        <Badge color={user.subscription === 'premium' ? 'bg-straw/20 text-straw border-straw/30' : 'bg-bamboo/10 text-bamboo border-bamboo/20'}>
                             {user.subscription.toUpperCase()}
                         </Badge>
                     </div>
                     <div>
-                        <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">XP</div>
-                        <div className="text-lg font-mono font-bold text-primary">{user.xp?.toLocaleString()}</div>
+                        <div className="text-xs text-bamboo uppercase font-bold tracking-wider">XP</div>
+                        <div className="text-lg font-mono font-bold text-hanko">{user.xp?.toLocaleString()}</div>
                     </div>
                     <div className="col-span-2 md:col-span-1">
-                         <div className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1 flex items-center gap-1">
+                         <div className="text-xs text-bamboo uppercase font-bold tracking-wider mb-1 flex items-center gap-1">
                              <BarChart2 size={12} /> Most Used
                          </div>
-                         <div className="text-sm font-medium text-white bg-white/5 px-2 py-1 rounded inline-block">
+                         <div className="text-sm font-medium text-ink bg-white/40 border border-bamboo/10 px-2 py-1 rounded inline-block">
                              {user.mostUsedSection || 'Dashboard'}
                          </div>
                     </div>
@@ -120,7 +120,7 @@ export const AdminUsers: React.FC = () => {
         ))}
 
         {filteredUsers.length === 0 && (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-bamboo">
                 No users found matching your criteria.
             </div>
         )}

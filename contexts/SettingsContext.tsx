@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Theme = 'light' | 'dark';
+// Removed 'Theme' type as we are strictly using the Washi theme now.
 
 interface AudioSettings {
   volume: number; // 0.0 to 1.0
@@ -11,8 +11,8 @@ interface AudioSettings {
 export type SoundType = 'correct' | 'wrong' | 'flip' | 'laser' | 'hit' | 'gameover' | 'click' | 'success';
 
 interface SettingsContextType {
-  theme: Theme;
-  toggleTheme: () => void;
+  // theme: Theme; // Removed
+  // toggleTheme: () => void; // Removed
   audioSettings: AudioSettings;
   updateAudioSettings: (settings: Partial<AudioSettings>) => void;
   speak: (text: string, lang?: string) => void;
@@ -26,12 +26,6 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Theme State - Default to 'light'
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('quizeon_theme');
-    return (saved as Theme) || 'light';
-  });
-
   // Audio State
   const [audioSettings, setAudioSettings] = useState<AudioSettings>(() => {
     const saved = localStorage.getItem('quizeon_audio');
@@ -39,15 +33,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const [isSpeaking, setIsSpeaking] = useState(false);
-
-  // Apply Theme
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove('dark', 'light'); 
-    root.classList.add(theme);
-    
-    localStorage.setItem('quizeon_theme', theme);
-  }, [theme]);
 
   // Persist Audio
   useEffect(() => {
@@ -61,10 +46,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }, 200);
     return () => clearInterval(interval);
   }, []);
-
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
-  };
 
   const updateAudioSettings = (newSettings: Partial<AudioSettings>) => {
     setAudioSettings(prev => ({ ...prev, ...newSettings }));
@@ -91,14 +72,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (audioSettings.muted) return;
 
     const sounds: Record<SoundType, string> = {
-        correct: 'https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/bonus.wav',
-        wrong: 'https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/explosion_02.wav',
-        flip: 'https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav', // subtle click
-        laser: 'https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav', 
-        hit: 'https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/explosion_02.wav',
-        gameover: 'https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/bonus.wav',
-        click: 'https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav',
-        success: 'https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/bonus.wav'
+        correct: 'https://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a',
+        wrong: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/explosion.mp3',
+        flip: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/thrust.mp3',
+        laser: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/missile.mp3',
+        hit: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/explosion.mp3',
+        gameover: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/soundtrack.mp3', 
+        click: 'https://commondatastorage.googleapis.com/codeskulptor-assets/week7-button.m4a',
+        success: 'https://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a'
     };
 
     const url = sounds[type];
@@ -115,8 +96,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <SettingsContext.Provider value={{
-      theme,
-      toggleTheme,
       audioSettings,
       updateAudioSettings,
       speak,

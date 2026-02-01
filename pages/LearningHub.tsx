@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GlassCard, Button, Badge } from '../components/UI';
 import { 
     BookOpen, ArrowLeft, ArrowRight, Hash, Scale, Copy, ArrowRightLeft, 
     Languages, Book, Layers, HelpCircle, Gamepad2, RotateCw, 
     CheckCircle, XCircle, Trophy, Grid, Bookmark, Volume2, Keyboard,
-    Calculator, PenTool, Shuffle, Timer, Heart, Eye, Move, Zap, Sparkles, Frown, ThumbsUp, ThumbsDown,
-    SortAsc, SortDesc, Play, Wand2, RefreshCw, Square
+    Calculator, PenTool, Shuffle, Timer, Heart, Move, Zap, Wand2, RefreshCw, Square, MessageCircle,
+    Smartphone, Globe, Wifi, ExternalLink, Frown, ThumbsDown, Play, SortAsc, X, Info, Rocket, Flame,
+    Target, MousePointer, Search, LayoutGrid, ListOrdered, Skull, Crosshair, Eye
 } from 'lucide-react';
 import { 
     VOCAB_DATA, KANA_DATA, KANJI_DATA, GRAMMAR_DATA, 
     COUNTER_DATA, NUMBER_DATA, SYNONYM_DATA, ANTONYM_DATA,
-    COUNTER_CATEGORIES, NUMBER_CATEGORIES
+    COUNTER_CATEGORIES, NUMBER_CATEGORIES, CONVERSATION_DATA
 } from '../data/mockContent';
-import { LearningItem, StoryContent } from '../types';
+import { LearningItem, StoryContent, ConversationTopic } from '../types';
 import { progressService } from '../services/progressService';
 import { aiService } from '../services/aiService';
 import { useSettings } from '../contexts/SettingsContext';
@@ -20,15 +21,15 @@ import { useSettings } from '../contexts/SettingsContext';
 // --- TYPES & UTILS ---
 
 type Difficulty = 'easy' | 'medium' | 'hard';
-type SectionType = 'kana' | 'vocab' | 'kanji' | 'grammar' | 'counter' | 'number' | 'synonym' | 'antonym';
-type ViewMode = 'list' | 'flashcard' | 'quiz' | 'match' | 'typing' | 'matrix' | 'scramble' | 'builder' | 'particle' | 'math' | 'story';
-type SortMethod = 'default' | 'az' | 'length' | 'random';
+type SectionType = 'kana' | 'vocab' | 'kanji' | 'grammar' | 'counter' | 'number' | 'synonym' | 'antonym' | 'conversation';
+type ViewMode = 'list' | 'flashcard' | 'quiz' | 'match' | 'typing' | 'matrix' | 'scramble' | 'builder' | 'particle' | 'math' | 'story' | 'conversation' | 'games';
+type SortMethod = 'default' | 'az' | 'length' | 'random' | 'serial';
 
 const getDifficultyConfig = (diff: Difficulty) => {
     switch(diff) {
         case 'easy': return { time: 30, lives: 5, options: 3, hint: true };
         case 'medium': return { time: 15, lives: 3, options: 4, hint: false };
-        case 'hard': return { time: 5, lives: 1, options: 4, hint: false };
+        case 'hard': return { time: 10, lives: 1, options: 4, hint: false };
     }
 };
 
@@ -44,22 +45,330 @@ const CelebrationOverlay: React.FC = () => (
 // Sad Vibe Overlay Component
 const SadOverlay: React.FC = () => (
     <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-50 bg-red-500/10 backdrop-blur-[2px]">
-        <Frown size={100} className="text-red-500 animate-pulse" />
+        <Frown size={100} className="text-hanko animate-pulse" />
     </div>
 );
+
+// --- GAME COMPONENTS ---
+
+const GameIntro: React.FC<{ title: string; desc: string; icon: any; onStart: () => void }> = ({ title, desc, icon: Icon, onStart }) => {
+    const { playSound } = useSettings();
+    
+    const handleStart = () => {
+        playSound('click');
+        onStart();
+    };
+
+    return (
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center animate-fade-in">
+            <div className="w-24 h-24 bg-gradient-to-br from-hanko/10 to-straw/20 rounded-full flex items-center justify-center mb-6 animate-float">
+                <Icon size={48} className="text-hanko" />
+            </div>
+            <h2 className="text-3xl font-bold text-ink mb-2 font-serif">{title}</h2>
+            <p className="text-bamboo mb-8 max-w-md text-lg leading-relaxed">{desc}</p>
+            <Button onClick={handleStart} size="lg" className="px-10 py-4 text-xl shadow-xl shadow-hanko/20">
+                <Play size={24} className="mr-2 fill-current" /> Play Now
+            </Button>
+        </div>
+    );
+};
+
+// 1. Kana Memory Match (Reusable for other sections)
+const MemoryMatchGame: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
+    const { playSound } = useSettings();
+    const [cards, setCards] = useState<any[]>([]);
+    const [flipped, setFlipped] = useState<number[]>([]);
+    const [matched, setMatched] = useState<number[]>([]);
+    const [moves, setMoves] = useState(0);
+
+    useEffect(() => {
+        const selection = items.sort(() => 0.5 - Math.random()).slice(0, 6);
+        const deck = [...selection.map(k => ({ ...k, display: k.ja, matchId: k.id })), 
+                      ...selection.map(k => ({ ...k, display: k.romaji, matchId: k.id }))]
+                      .sort(() => 0.5 - Math.random());
+        setCards(deck);
+    }, [items]);
+
+    const handleCardClick = (index: number) => {
+        if (flipped.length === 2 || flipped.includes(index) || matched.includes(index)) return;
+
+        const newFlipped = [...flipped, index];
+        setFlipped(newFlipped);
+        playSound('flip');
+
+        if (newFlipped.length === 2) {
+            setMoves(m => m + 1);
+            const [first, second] = newFlipped;
+            if (cards[first].matchId === cards[second].matchId) {
+                setMatched(m => [...m, first, second]);
+                setFlipped([]);
+                playSound('correct');
+            } else {
+                setTimeout(() => setFlipped([]), 1000);
+            }
+        }
+    };
+
+    const isGameOver = matched.length === cards.length && cards.length > 0;
+
+    if (isGameOver) {
+        return (
+            <div className="text-center py-10 animate-pop">
+                <Trophy size={64} className="mx-auto text-straw mb-6 animate-bounce" />
+                <h3 className="text-3xl font-bold text-ink mb-2">Stage Clear!</h3>
+                <p className="text-bamboo mb-8">Completed in {moves} moves</p>
+                <Button onClick={onExit}><RotateCw size={18} /> Finish</Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="py-4">
+            <div className="flex justify-between mb-6">
+                <span className="text-bamboo font-bold bg-white/50 px-3 py-1 rounded-lg">Moves: {moves}</span>
+                <Button variant="ghost" size="sm" onClick={onExit}><X size={16} /> Exit</Button>
+            </div>
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                {cards.map((card, i) => (
+                    <div 
+                        key={i}
+                        onClick={() => handleCardClick(i)}
+                        className={`aspect-square rounded-xl flex items-center justify-center text-xl md:text-2xl font-bold transition-all duration-500 cursor-pointer shadow-sm border
+                            ${flipped.includes(i) || matched.includes(i) 
+                                ? 'bg-white text-ink border-hanko rotate-0' 
+                                : 'bg-hanko text-transparent border-hanko/50 rotate-y-180 hover:bg-red-700'}
+                        `}
+                    >
+                        {(flipped.includes(i) || matched.includes(i)) ? card.display : '?'}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// 3. Typing Master (Enhanced)
+const TypingMasterGame: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
+    const { playSound } = useSettings();
+    const [gameState, setGameState] = useState<'menu' | 'playing' | 'gameover'>('menu');
+    const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+    const [current, setCurrent] = useState<LearningItem | null>(null);
+    const [input, setInput] = useState('');
+    const [score, setScore] = useState(0);
+    const [lives, setLives] = useState(3);
+    const [streak, setStreak] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(100);
+    const [isShaking, setIsShaking] = useState(false);
+    const [feedback, setFeedback] = useState<string | null>(null);
+    const timerRef = useRef<number | null>(null);
+
+    const getDifficultyParams = () => {
+        switch (difficulty) {
+            case 'easy': return { timeMs: 15000, decay: 0.2 };
+            case 'medium': return { timeMs: 8000, decay: 0.5 };
+            case 'hard': return { timeMs: 4000, decay: 1.0 };
+        }
+    };
+
+    const startGame = () => {
+        setScore(0);
+        setLives(3);
+        setStreak(0);
+        setGameState('playing');
+        playSound('click');
+        nextWord();
+    };
+
+    const nextWord = () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        
+        const item = items[Math.floor(Math.random() * items.length)];
+        setCurrent(item);
+        setInput('');
+        setTimeLeft(100);
+        setFeedback(null);
+
+        const params = getDifficultyParams();
+        const tickRate = 50; 
+        const decrement = (100 / (params.timeMs / tickRate));
+
+        timerRef.current = window.setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 0) {
+                    handleTimeOut();
+                    return 0;
+                }
+                return prev - decrement;
+            });
+        }, tickRate);
+    };
+
+    const handleTimeOut = () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        playSound('wrong');
+        setLives(prev => {
+            const newLives = prev - 1;
+            if (newLives <= 0) {
+                endGame();
+                return 0;
+            }
+            return newLives;
+        });
+        setStreak(0);
+        setIsShaking(true);
+        setTimeout(() => { setIsShaking(false); nextWord(); }, 500);
+    };
+
+    const endGame = () => {
+        setGameState('gameover');
+        playSound('gameover');
+        if (timerRef.current) clearInterval(timerRef.current);
+    };
+
+    useEffect(() => {
+        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }, []);
+
+    const check = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        if (!current) return;
+
+        // Visual feedback on mismatch
+        if (!current.romaji.toLowerCase().startsWith(val.toLowerCase())) {
+            setIsShaking(true);
+            playSound('click'); // Or a distinct error thud
+            setTimeout(() => setIsShaking(false), 200);
+            return; // Block input or allow with shake? Blocking feels like "Typing Master"
+        }
+
+        setInput(val);
+
+        if (val.toLowerCase() === current.romaji.toLowerCase()) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            playSound('hit'); // Satisfying hit sound
+            setScore(s => s + (10 * (streak + 1)));
+            setStreak(s => s + 1);
+            setFeedback(`+${10 * (streak + 1)}`);
+            nextWord();
+        }
+    };
+
+    if (gameState === 'menu') {
+        return (
+            <div className="text-center py-10 max-w-md mx-auto">
+                <Keyboard size={64} className="mx-auto text-hanko mb-4 animate-pulse" />
+                <h2 className="text-3xl font-bold text-ink mb-6 font-serif">Typing Master</h2>
+                <div className="space-y-4 mb-8">
+                    {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
+                        <button
+                            key={d}
+                            onClick={() => setDifficulty(d)}
+                            className={`w-full py-3 rounded-xl font-bold uppercase tracking-widest transition-all ${
+                                difficulty === d 
+                                ? 'bg-hanko text-white shadow-lg scale-105' 
+                                : 'bg-white border border-bamboo/20 text-bamboo hover:bg-rice'
+                            }`}
+                        >
+                            {d}
+                        </button>
+                    ))}
+                </div>
+                <Button onClick={startGame} className="w-full py-4 text-xl shadow-xl">
+                    Start Game <Play size={20} className="ml-2" />
+                </Button>
+            </div>
+        );
+    }
+
+    if (gameState === 'gameover') {
+        return (
+            <div className="text-center py-10 animate-pop">
+                <Skull size={64} className="mx-auto text-bamboo mb-6" />
+                <h3 className="text-3xl font-bold text-ink mb-2">Game Over</h3>
+                <div className="text-6xl font-mono font-bold text-hanko mb-4">{score}</div>
+                <p className="text-bamboo mb-8 uppercase tracking-widest text-xs font-bold">Final Score</p>
+                <div className="flex gap-4 justify-center">
+                    <Button onClick={() => { setGameState('menu'); }} variant="secondary">Menu</Button>
+                    <Button onClick={startGame}>Try Again</Button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="text-center py-6 max-w-md mx-auto relative">
+            <div className="flex justify-between items-center mb-8 px-4">
+                <div className="flex flex-col items-start">
+                    <span className="text-xs text-bamboo font-bold uppercase tracking-widest">Score</span>
+                    <span className="text-2xl font-mono font-bold text-ink">{score}</span>
+                </div>
+                <div className="flex gap-1">
+                    {[...Array(3)].map((_, i) => (
+                        <Heart key={i} size={24} className={`${i < lives ? 'text-hanko fill-hanko' : 'text-bamboo/20 fill-bamboo/20'} transition-colors`} />
+                    ))}
+                </div>
+            </div>
+
+            {/* Timer Bar */}
+            <div className="w-full h-2 bg-bamboo/10 rounded-full mb-8 overflow-hidden">
+                <div 
+                    className={`h-full transition-all duration-100 ease-linear ${timeLeft < 30 ? 'bg-hanko' : timeLeft < 60 ? 'bg-straw' : 'bg-green-500'}`} 
+                    style={{ width: `${timeLeft}%` }}
+                ></div>
+            </div>
+
+            {current && (
+                <div className="relative mb-8">
+                    {/* Floating Feedback */}
+                    {feedback && (
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-12 text-3xl font-bold text-straw animate-float-slow opacity-0 z-20" style={{ animation: 'pop 0.5s forwards' }}>
+                            {feedback}
+                        </div>
+                    )}
+                    
+                    <div className="text-xs text-bamboo font-bold uppercase tracking-widest mb-2 border border-bamboo/20 rounded-full px-3 py-1 inline-block">Type the Romaji</div>
+                    <div className={`text-7xl md:text-8xl font-bold text-ink mb-4 font-jp transition-transform ${isShaking ? 'animate-shake text-hanko' : ''}`} key={current.id}>
+                        {current.ja}
+                    </div>
+                    {difficulty === 'easy' && <div className="text-bamboo text-sm mb-4 font-medium">{current.en}</div>}
+                    
+                    <div className="relative">
+                        <input 
+                            autoFocus
+                            value={input}
+                            onChange={check}
+                            className={`w-full text-center text-3xl p-4 border-b-2 bg-transparent focus:outline-none transition-colors font-mono tracking-widest
+                                ${isShaking ? 'border-hanko text-hanko' : 'border-bamboo/30 text-ink focus:border-hanko'}
+                            `}
+                            placeholder="..."
+                        />
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 text-bamboo/20">
+                            <Crosshair size={24} />
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            <div className="flex justify-between items-center text-xs font-bold text-bamboo uppercase tracking-widest mt-8">
+                <span>Streak: {streak} 🔥</span>
+                <button onClick={onExit} className="hover:text-hanko transition-colors">Exit Game</button>
+            </div>
+        </div>
+    );
+};
 
 // --- SUB-COMPONENTS FOR GAMES ---
 
 const DifficultySelector: React.FC<{ current: Difficulty; onChange: (d: Difficulty) => void }> = ({ current, onChange }) => (
-    <div className="flex bg-white/5 p-1 rounded-lg gap-1 mb-6 max-w-sm mx-auto">
+    <div className="flex bg-white/40 p-1.5 rounded-xl gap-2 mb-8 max-w-sm mx-auto border border-bamboo/20 shadow-inner">
         {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
             <button
                 key={d}
                 onClick={() => onChange(d)}
-                className={`flex-1 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${
+                className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-sm ${
                     current === d 
-                    ? d === 'easy' ? 'bg-green-500 text-white' : d === 'medium' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-white hover:bg-white/10'
+                    ? d === 'easy' ? 'bg-green-600 text-white shadow-green-200' : d === 'medium' ? 'bg-straw text-white shadow-yellow-200' : 'bg-hanko text-white shadow-red-200'
+                    : 'text-bamboo hover:bg-white/60 bg-transparent shadow-none'
                 }`}
             >
                 {d}
@@ -89,24 +398,24 @@ const LessonStoryView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
     if (loading) {
         return (
             <GlassCard className="flex flex-col items-center justify-center min-h-[400px]">
-                <Wand2 size={48} className="text-primary animate-pulse mb-4" />
-                <h3 className="text-xl font-bold text-white">Weaving a story...</h3>
-                <p className="text-slate-400">Using {items.length} vocabulary words.</p>
+                <Wand2 size={48} className="text-hanko animate-pulse mb-4" />
+                <h3 className="text-xl font-bold text-ink">Weaving a story...</h3>
+                <p className="text-bamboo">Using {items.length} vocabulary words.</p>
             </GlassCard>
         );
     }
 
     if (!story) {
         return (
-            <GlassCard className="text-center py-12">
-                <BookOpen size={64} className="mx-auto text-blue-400 mb-6" />
-                <h2 className="text-2xl font-bold text-white mb-2">Lesson Story Generator</h2>
-                <p className="text-slate-400 mb-6 max-w-md mx-auto">
+            <GlassCard className="text-center py-16">
+                <BookOpen size={64} className="mx-auto text-bamboo mb-6" />
+                <h2 className="text-3xl font-bold text-ink mb-2 font-serif">Story Generator</h2>
+                <p className="text-bamboo mb-8 max-w-md mx-auto">
                     Generate a unique story using the vocabulary from this lesson. 
                     Great for context-based learning!
                 </p>
-                <Button onClick={generateStory} className="px-8 py-3 text-lg">
-                    <Wand2 size={20} /> Generate Story
+                <Button onClick={generateStory} size="lg">
+                    <Wand2 size={20} className="mr-2" /> Generate Story
                 </Button>
             </GlassCard>
         );
@@ -114,17 +423,17 @@ const LessonStoryView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <GlassCard className="border-primary/20">
-                <div className="flex justify-between items-start mb-4">
-                    <h2 className="text-3xl font-bold text-white font-jp">{story.title}</h2>
+            <GlassCard className="border-hanko/10">
+                <div className="flex justify-between items-start mb-6">
+                    <h2 className="text-3xl font-bold text-ink font-serif">{story.title}</h2>
                     <div className="flex gap-2">
                         <Button variant="secondary" size="sm" onClick={() => speak(story.japanese)}><Volume2 size={16} /></Button>
                         <Button variant="secondary" size="sm" onClick={() => setStory(null)}><RefreshCw size={16} /></Button>
                     </div>
                 </div>
 
-                <div className="p-6 bg-white/5 rounded-xl border border-white/5 mb-6">
-                    <p className="text-2xl leading-relaxed font-jp text-slate-100">{story.japanese}</p>
+                <div className="p-8 bg-white/60 rounded-2xl border border-bamboo/10 mb-6 shadow-inner">
+                    <p className="text-2xl leading-loose font-jp text-ink">{story.japanese}</p>
                 </div>
 
                 <div className="flex gap-2 mb-4">
@@ -145,12 +454,12 @@ const LessonStoryView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
                 </div>
 
                 {showTranslation === 'en' && (
-                    <div className="p-4 bg-blue-500/10 border-l-4 border-blue-500 rounded-r-xl text-slate-300 italic animate-fade-in">
+                    <div className="p-6 bg-blue-50 border-l-4 border-blue-400 rounded-r-xl text-ink italic animate-fade-in font-serif">
                         {story.english}
                     </div>
                 )}
                 {showTranslation === 'bn' && (
-                    <div className="p-4 bg-green-500/10 border-l-4 border-green-500 rounded-r-xl text-slate-300 animate-fade-in">
+                    <div className="p-6 bg-green-50 border-l-4 border-green-500 rounded-r-xl text-ink animate-fade-in">
                         {story.bangla}
                     </div>
                 )}
@@ -158,12 +467,12 @@ const LessonStoryView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <GlassCard>
-                     <h3 className="font-bold text-white mb-4">Vocabulary Used</h3>
+                     <h3 className="font-bold text-ink mb-4 flex items-center gap-2"><BookOpen size={18} /> Vocabulary Used</h3>
                      <ul className="space-y-2">
                          {story.vocab.map((v, i) => (
-                             <li key={i} className="flex justify-between text-sm border-b border-white/5 pb-1">
-                                 <span className="text-primary">{v.word}</span>
-                                 <span className="text-slate-400">{v.meaning}</span>
+                             <li key={i} className="flex justify-between text-sm border-b border-bamboo/20 pb-2 last:border-0">
+                                 <span className="text-hanko font-bold">{v.word}</span>
+                                 <span className="text-bamboo">{v.meaning}</span>
                              </li>
                          ))}
                      </ul>
@@ -208,9 +517,13 @@ const FlashcardView: React.FC<{ items: LearningItem[] }> = ({ items: initialItem
     }, [items.length]);
 
     const toggleFlip = useCallback(() => {
-        if (!flipped) playSound('flip');
+        if (!flipped) {
+            playSound('flip');
+            // Play audio when flipping to reveal
+            setTimeout(() => systemSpeak(current.ja), 300);
+        }
         setFlipped(prev => !prev);
-    }, [flipped, playSound]);
+    }, [flipped, playSound, systemSpeak, current]);
 
     const markUnknown = useCallback(() => {
         if (current) {
@@ -257,89 +570,79 @@ const FlashcardView: React.FC<{ items: LearningItem[] }> = ({ items: initialItem
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [nextCard, prevCard, toggleFlip, markUnknown, flipped]);
 
-    if (!current) return <div className="text-slate-400 py-10">No items available for flashcards.</div>;
+    if (!current) return <div className="text-bamboo py-10">No items available for flashcards.</div>;
 
     return (
-        <div className="max-w-2xl mx-auto text-center py-4 animate-fade-in relative">
+        <div className="max-w-3xl mx-auto text-center py-4 animate-fade-in relative">
             <div className="flex justify-between items-center mb-6 px-2">
                 <div className="flex items-center gap-2">
-                     <span className="text-slate-500 dark:text-slate-400 text-sm font-mono">{idx + 1} / {items.length}</span>
+                     <span className="text-bamboo text-sm font-mono font-bold bg-white/50 px-3 py-1 rounded-full border border-bamboo/10">
+                        Card {idx + 1} / {items.length}
+                     </span>
                 </div>
-                <div className="flex gap-2">
-                    <Badge className="bg-slate-200 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-white/10">{current.category || 'General'}</Badge>
-                </div>
-            </div>
-
-            <div className="hidden md:flex justify-center gap-4 mb-4 text-xs text-slate-500 bg-white/50 dark:bg-white/5 py-2 rounded-lg mx-auto max-w-sm">
-                <span className="flex items-center gap-1"><Keyboard size={12} /> Space: Flip</span>
-                <span className="w-px h-3 bg-slate-300 dark:bg-white/10"></span>
-                <span className="flex items-center gap-1 text-red-500">Space (Back): Mistake</span>
+                <Badge>{current.category || 'General'}</Badge>
             </div>
 
             {/* 3D CARD CONTAINER */}
             <div 
-                className="relative w-full aspect-[4/3] md:aspect-[16/9] perspective-[1200px] cursor-pointer group mb-8" 
+                className="relative w-full aspect-[4/3] md:aspect-[16/9] perspective-[1200px] cursor-pointer group mb-10" 
                 onClick={toggleFlip}
             >
-                <div className={`relative w-full h-full transition-transform duration-700 [transform-style:preserve-3d] ${flipped ? '[transform:rotateY(180deg)]' : ''}`}>
+                <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${flipped ? '[transform:rotateY(180deg)]' : ''}`}>
                     
                     {/* --- FRONT FACE --- */}
-                    <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-[32px] p-[1px] bg-gradient-to-br from-white to-slate-100 dark:from-white/20 dark:to-white/0 shadow-2xl shadow-primary/5 hover:scale-[1.02] transition-transform duration-500">
-                        <div className="w-full h-full rounded-[31px] bg-white dark:bg-slate-900/40 backdrop-blur-2xl flex flex-col items-center justify-center relative overflow-hidden border border-slate-200 dark:border-white/10">
-                            
-                            {/* Controls */}
-                            <div className="absolute top-6 right-6 flex gap-3 z-20">
-                                <button onClick={playAudio} className="p-3 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-500 dark:text-slate-300 hover:text-primary dark:hover:text-white transition-all backdrop-blur-md border border-slate-200 dark:border-white/10 hover:scale-110 active:scale-95"><Volume2 size={20} /></button>
-                                <button onClick={toggleSave} className={`p-3 rounded-full transition-all backdrop-blur-md border hover:scale-110 active:scale-95 ${isSaved ? 'bg-primary text-white border-primary/50 shadow-lg shadow-primary/30' : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-white border-slate-200 dark:border-white/10'}`}><Bookmark size={20} fill={isSaved ? "currentColor" : "none"} /></button>
-                            </div>
+                    <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] rounded-[32px] bg-white border border-bamboo/20 shadow-xl shadow-ink/5 hover:scale-[1.02] transition-transform duration-500 overflow-hidden">
+                        <div className="absolute inset-0 washi-texture opacity-40"></div>
+                        
+                        {/* Controls */}
+                        <div className="absolute top-6 right-6 flex gap-3 z-20">
+                            <button onClick={toggleSave} className={`p-3 rounded-full transition-all backdrop-blur-md border hover:scale-110 active:scale-95 shadow-sm ${isSaved ? 'bg-hanko text-white border-hanko' : 'bg-white/80 text-bamboo hover:text-hanko border-bamboo/20'}`}><Bookmark size={20} fill={isSaved ? "currentColor" : "none"} /></button>
+                        </div>
 
-                            {/* Content */}
-                            <div className="relative z-10 flex flex-col items-center">
-                                <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary/80 mb-8 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-md">{current.type}</span>
-                                <h2 className="text-7xl md:text-9xl font-jp font-bold text-slate-900 dark:text-white mb-8 drop-shadow-sm dark:drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] tracking-tight">
-                                    {current.ja}
-                                </h2>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium animate-pulse flex items-center gap-2 bg-slate-100 dark:bg-black/20 px-4 py-2 rounded-full border border-slate-200 dark:border-white/5">
-                                    <RotateCw size={14} /> Tap to flip
-                                </p>
-                            </div>
+                        <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                            <h2 className="text-7xl md:text-9xl font-jp font-bold text-ink mb-8 tracking-tight drop-shadow-sm">
+                                {current.ja}
+                            </h2>
+                            <p className="text-bamboo text-sm font-medium animate-pulse flex items-center gap-2 bg-white/60 px-4 py-2 rounded-full border border-bamboo/20">
+                                <RotateCw size={14} /> Tap or Space to flip
+                            </p>
                         </div>
                     </div>
                     
                     {/* --- BACK FACE --- */}
-                    <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-[32px] p-[1px] bg-gradient-to-br from-green-500/20 to-blue-500/0 shadow-2xl">
-                         <div className="w-full h-full rounded-[31px] bg-white dark:bg-slate-900/80 backdrop-blur-xl flex flex-col items-center justify-center relative overflow-hidden p-8 border border-slate-200 dark:border-white/10">
-                             
-                             <div className="absolute top-6 right-6 flex gap-3 z-20">
-                                <button onClick={toggleSave} className={`p-3 rounded-full transition-all backdrop-blur-md border ${isSaved ? 'bg-primary text-white border-primary/50 shadow-lg shadow-primary/30' : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-white border-slate-200 dark:border-white/5'}`}><Bookmark size={20} fill={isSaved ? "currentColor" : "none"} /></button>
-                            </div>
+                    <div className="absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-[32px] bg-white border border-bamboo/20 shadow-xl overflow-hidden">
+                         <div className="absolute inset-0 washi-texture opacity-40"></div>
+                         
+                         <div className="absolute top-6 right-6 flex gap-3 z-20">
+                            <button onClick={playAudio} className="p-3 rounded-full bg-white/80 hover:bg-white text-bamboo hover:text-ink transition-all backdrop-blur-md border border-bamboo/20 hover:scale-110 active:scale-95 shadow-sm"><Volume2 size={20} /></button>
+                            <button onClick={toggleSave} className={`p-3 rounded-full transition-all backdrop-blur-md border hover:scale-110 active:scale-95 shadow-sm ${isSaved ? 'bg-hanko text-white border-hanko' : 'bg-white/80 text-bamboo hover:text-hanko border-bamboo/20'}`}><Bookmark size={20} fill={isSaved ? "currentColor" : "none"} /></button>
+                        </div>
 
-                            <div className="text-center space-y-6 max-w-lg relative z-10">
-                                <div>
-                                    <h3 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-2 leading-tight">{current.en}</h3>
-                                    <p className="text-2xl text-primary font-medium tracking-wide">{current.romaji}</p>
-                                </div>
-                                <div className="h-px w-24 bg-gradient-to-r from-transparent via-slate-300 dark:via-white/20 to-transparent mx-auto"></div>
-                                <div className="grid grid-cols-1 gap-3 text-sm text-slate-600 dark:text-slate-300">
-                                    {current.bn && (
-                                        <p className="flex items-center justify-center gap-2 text-lg">
-                                            <span className="text-[10px] uppercase font-bold bg-slate-200 dark:bg-white/10 px-1.5 py-0.5 rounded tracking-wider text-slate-500 dark:text-slate-400">BN</span> 
-                                            {current.bn}
-                                        </p>
-                                    )}
-                                </div>
-                                <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); markUnknown(); }} className="mt-4">
-                                     <ThumbsDown size={16} /> Mark as Mistake
-                                </Button>
+                        <div className="text-center space-y-6 max-w-lg mx-auto relative z-10 flex flex-col items-center justify-center h-full p-8">
+                            <div>
+                                <h3 className="text-4xl md:text-5xl font-bold text-ink mb-3 leading-tight font-serif">{current.en}</h3>
+                                <p className="text-2xl text-hanko font-medium tracking-wide">{current.romaji}</p>
                             </div>
+                            <div className="h-px w-24 bg-bamboo/20"></div>
+                            
+                            {current.bn && (
+                                <p className="flex items-center justify-center gap-2 text-xl text-ink/80">
+                                    <span className="text-[10px] uppercase font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded tracking-wider border border-green-200">BN</span> 
+                                    {current.bn}
+                                </p>
+                            )}
+                            
+                            <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); markUnknown(); }} className="mt-6 shadow-red-100">
+                                 <ThumbsDown size={16} /> Mark as Mistake (Space)
+                            </Button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className="flex items-center justify-center gap-6">
-                <Button variant="secondary" onClick={prevCard} className="w-32 group"> <ArrowLeft size={18} /> Prev </Button>
-                <Button onClick={nextCard} className="w-32 group"> Next <ArrowRight size={18} /> </Button>
+                <Button variant="secondary" onClick={prevCard} className="w-32 group"> <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Prev </Button>
+                <Button onClick={nextCard} className="w-32 group"> Next <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /> </Button>
             </div>
         </div>
     );
@@ -367,15 +670,13 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
         if (items.length < 2) return;
         setLives(config.lives);
         
-        // Use ALL items randomly
-        const deck = [...items]; 
+        // Use ALL items from the selected lesson and randomize them
+        const deck = [...items].sort(() => 0.5 - Math.random()); 
         
-        const qs = deck.sort(() => 0.5 - Math.random()).map(item => {
-            
+        const qs = deck.map(item => {
             // Logic for Particle Master Mode (Grammar Specific)
             if (customMode === 'particle' && item.usage) {
                 const particles = ['は', 'が', 'を', 'に', 'で', 'へ', 'と', 'の', 'も'];
-                // Find particles present in the usage example
                 const foundParticles = particles.filter(p => item.usage!.includes(p));
                 
                 if (foundParticles.length > 0) {
@@ -390,37 +691,42 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
                 }
             }
 
-            // Standard Quiz Logic: Mix of JA -> BN and BN/EN -> JA
-            const useBanglaQuestion = Math.random() > 0.5;
+            // Enhanced Mixed Language Logic
+            // 4 Possible modes: JA->EN, EN->JA, JA->BN, BN->JA (if BN exists)
+            
             const hasBangla = !!item.bn;
+            const modes = ['ja_en', 'en_ja'];
+            if (hasBangla) {
+                modes.push('ja_bn', 'bn_ja');
+            }
+            
+            const mode = modes[Math.floor(Math.random() * modes.length)];
             
             let questionText, correctText, optionsPool;
-            
-            if (useBanglaQuestion && hasBangla) {
-                // Q: BN, Options: JA
-                questionText = item.bn;
+
+            if (mode === 'ja_bn') {
+                // Q: Japanese -> A: Bangla
+                questionText = item.ja;
+                correctText = item.bn!;
+                optionsPool = deck.filter(i => i.id !== item.id && i.bn).map(i => i.bn!);
+            } else if (mode === 'bn_ja') {
+                 // Q: Bangla -> A: Japanese
+                questionText = item.bn!;
                 correctText = item.ja;
                 optionsPool = deck.filter(i => i.id !== item.id).map(i => i.ja);
-            } else if (!useBanglaQuestion && hasBangla) {
-                 // Q: JA, Options: BN
-                 questionText = item.ja;
-                 correctText = item.bn;
-                 optionsPool = deck.filter(i => i.id !== item.id).map(i => i.bn || i.en);
+            } else if (mode === 'en_ja') {
+                // Q: English -> A: Japanese
+                questionText = item.en;
+                correctText = item.ja;
+                optionsPool = deck.filter(i => i.id !== item.id).map(i => i.ja);
             } else {
-                // Fallback to English if no Bangla or random choice
-                // Q: JA, Options: EN
-                if (Math.random() > 0.5) {
-                    questionText = item.ja;
-                    correctText = item.en;
-                    optionsPool = deck.filter(i => i.id !== item.id).map(i => i.en);
-                } else {
-                    // Q: EN, Options: JA
-                    questionText = item.en;
-                    correctText = item.ja;
-                    optionsPool = deck.filter(i => i.id !== item.id).map(i => i.ja);
-                }
+                // Q: Japanese -> A: English (Default)
+                questionText = item.ja;
+                correctText = item.en;
+                optionsPool = deck.filter(i => i.id !== item.id).map(i => i.en);
             }
 
+            // Ensure we have enough options, if not, fill with dummy if really needed (unlikely with decent dataset)
             const wrongOptions = optionsPool.sort(() => 0.5 - Math.random()).slice(0, config.options - 1);
             
             return {
@@ -428,7 +734,7 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
                 correct: correctText,
                 options: [...wrongOptions, correctText].sort(() => 0.5 - Math.random())
             };
-        }).filter(q => q); // Filter out nulls from particle mode if generation failed
+        }).filter(q => q);
 
         setQuestions(qs);
         setScore(0);
@@ -469,15 +775,12 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
         setTimeout(() => {
             setFeedback(null);
             
-            // Check if game should end due to completion or lives
             if (currentQIndex < questions.length - 1 && (lives > 1 || isCorrect)) {
                 setCurrentQIndex(currentQIndex + 1);
                 setTimeLeft(config.time);
             } else {
                 setShowScore(true);
-                // Trigger completion callback if finished all questions
                 if (currentQIndex === questions.length - 1 && (lives > 0 || isCorrect)) {
-                     // Calculate final score including the last one
                      const finalScore = score + (isCorrect ? 10 : 0);
                      if (onComplete) onComplete(finalScore, questions.length * 10);
                 }
@@ -485,7 +788,7 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
         }, 1200);
     };
 
-    if (items.length < 4) return <div className="text-center py-10 text-slate-400">Not enough items to generate a quiz.</div>;
+    if (items.length < 4) return <div className="text-center py-10 text-bamboo">Not enough items to generate a quiz.</div>;
     if (questions.length === 0) return <div className="text-center py-10">Loading Quiz...</div>;
 
     if (showScore) {
@@ -493,16 +796,20 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
         const passed = percentage >= 80;
 
         return (
-            <div className="text-center py-12 animate-fade-in relative">
+            <div className="text-center py-12 animate-fade-in relative max-w-md mx-auto">
                 {passed && <CelebrationOverlay />}
-                <Trophy size={64} className={`mx-auto mb-4 ${passed ? 'text-green-500 dark:text-green-400 animate-bounce' : 'text-yellow-400'}`} />
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{lives > 0 ? 'Quiz Completed!' : 'Game Over'}</h2>
-                <div className="text-6xl font-bold mb-4 font-mono">
-                    <span className={passed ? "text-green-500 dark:text-green-400" : "text-slate-900 dark:text-white"}>{percentage}%</span>
-                </div>
-                {passed && <div className="inline-block px-4 py-2 bg-green-500/20 text-green-600 dark:text-green-400 rounded-lg mb-6 font-bold border border-green-500/50">Lesson Mastered!</div>}
-                <p className="text-slate-500 dark:text-slate-400 mb-6">Score: {score} / {questions.length * 10}</p>
-                <Button onClick={() => { setShowScore(false); setCurrentQIndex(0); setScore(0); setLives(config.lives); }}>Retry Quiz</Button>
+                <GlassCard className="border-t-4 border-t-hanko">
+                    <Trophy size={64} className={`mx-auto mb-4 ${passed ? 'text-straw animate-bounce' : 'text-bamboo'}`} />
+                    <h2 className="text-3xl font-bold text-ink mb-2 font-serif">{lives > 0 ? 'Quiz Completed!' : 'Game Over'}</h2>
+                    <div className="text-7xl font-bold mb-4 font-mono tracking-tighter">
+                        <span className={passed ? "text-green-600" : "text-hanko"}>{percentage}%</span>
+                    </div>
+                    {passed && <div className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-lg mb-6 font-bold border border-green-200">Lesson Mastered!</div>}
+                    <p className="text-bamboo mb-8">Score: {score} / {questions.length * 10}</p>
+                    <Button onClick={() => { setShowScore(false); setCurrentQIndex(0); setScore(0); setLives(config.lives); }} className="w-full">
+                        <RotateCw size={18} /> Retry Quiz
+                    </Button>
+                </GlassCard>
             </div>
         );
     }
@@ -510,22 +817,22 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
     const currentQ = questions[currentQIndex];
 
     return (
-        <div className="max-w-xl mx-auto py-8 animate-fade-in relative">
+        <div className="max-w-xl mx-auto py-4 animate-fade-in relative">
             {feedback === 'correct' && <CelebrationOverlay />}
             {feedback === 'wrong' && <SadOverlay />}
             
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 px-2">
                 <div className="flex gap-4">
-                    <span className="flex items-center gap-1 text-red-500 dark:text-red-400"><Heart size={18} fill="currentColor" /> {lives}</span>
-                    <span className="flex items-center gap-1 text-primary"><Timer size={18} /> {timeLeft}s</span>
+                    <span className="flex items-center gap-1 text-hanko bg-white/60 px-3 py-1 rounded-lg border border-hanko/10 shadow-sm"><Heart size={18} fill="currentColor" /> {lives}</span>
+                    <span className="flex items-center gap-1 text-straw bg-white/60 px-3 py-1 rounded-lg border border-straw/10 shadow-sm"><Timer size={18} /> {timeLeft}s</span>
                 </div>
-                <span className="text-slate-500 dark:text-slate-400">Q {currentQIndex + 1}/{questions.length}</span>
+                <span className="text-bamboo font-bold text-sm bg-white/60 px-3 py-1 rounded-lg border border-bamboo/10">Q {currentQIndex + 1}/{questions.length}</span>
             </div>
             
-            <GlassCard className={`text-center py-12 mb-6 border-2 transition-all duration-300 ${feedback === 'correct' ? 'border-green-500 bg-green-500/10 scale-105' : feedback === 'wrong' ? 'border-red-500 bg-red-500/10 animate-pulse' : 'border-slate-200 dark:border-white/10'}`}>
-                <h2 className="text-4xl font-jp font-bold text-slate-900 dark:text-white mb-4 whitespace-pre-line">{currentQ.question}</h2>
-                {feedback === 'correct' && <CheckCircle className="mx-auto text-green-500 animate-bounce" />}
-                {feedback === 'wrong' && <XCircle className="mx-auto text-red-500 animate-bounce" />}
+            <GlassCard className={`text-center py-16 mb-6 border-2 transition-all duration-300 ${feedback === 'correct' ? 'border-green-500 bg-green-50 scale-105' : feedback === 'wrong' ? 'border-hanko bg-red-50 animate-pulse' : 'border-bamboo/20'}`}>
+                <h2 className="text-3xl md:text-4xl font-jp font-bold text-ink mb-4 whitespace-pre-line leading-relaxed">{currentQ.question}</h2>
+                {feedback === 'correct' && <CheckCircle className="mx-auto text-green-500 animate-bounce" size={40} />}
+                {feedback === 'wrong' && <XCircle className="mx-auto text-hanko animate-bounce" size={40} />}
             </GlassCard>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -535,7 +842,7 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
                         variant="secondary" 
                         onClick={() => handleAnswer(opt)}
                         disabled={!!feedback}
-                        className="py-4 text-lg hover:bg-white/20 font-jp"
+                        className="py-5 text-lg hover:bg-rice font-jp shadow-sm"
                     >
                         {opt}
                     </Button>
@@ -545,58 +852,137 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
     );
 };
 
-// ... Rest of the components remain similar, assuming standard components follow the pattern above.
-// The key update was connecting playSound and speak from useSettings
-
-// --- PLACEHOLDER COMPONENTS FOR MISSING VIEWS ---
-
-const MemoryMatchView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = ({ items }) => (
-  <GlassCard className="flex flex-col items-center justify-center min-h-[400px]">
-    <Gamepad2 size={64} className="text-purple-400 mb-4" />
-    <h2 className="text-2xl font-bold text-white mb-2">Memory Match</h2>
-    <p className="text-slate-400">Feature coming soon...</p>
-  </GlassCard>
-);
-
-const TypingPracticeView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = ({ items }) => (
-  <GlassCard className="flex flex-col items-center justify-center min-h-[400px]">
-    <Keyboard size={64} className="text-blue-400 mb-4" />
-    <h2 className="text-2xl font-bold text-white mb-2">Typing Practice</h2>
-    <p className="text-slate-400">Feature coming soon...</p>
-  </GlassCard>
-);
+// --- PLACEHOLDER COMPONENTS ---
 
 const SentenceBuilderView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = ({ items }) => (
   <GlassCard className="flex flex-col items-center justify-center min-h-[400px]">
-    <PenTool size={64} className="text-green-400 mb-4" />
-    <h2 className="text-2xl font-bold text-white mb-2">Sentence Builder</h2>
-    <p className="text-slate-400">Feature coming soon...</p>
+    <PenTool size={64} className="text-green-600 mb-4" />
+    <h2 className="text-2xl font-bold text-ink mb-2">Sentence Builder</h2>
+    <p className="text-bamboo">Arrange words to form sentences. Coming soon...</p>
   </GlassCard>
 );
 
 const MathChallengeView: React.FC<{ difficulty: Difficulty }> = () => (
   <GlassCard className="flex flex-col items-center justify-center min-h-[400px]">
-    <Calculator size={64} className="text-yellow-400 mb-4" />
-    <h2 className="text-2xl font-bold text-white mb-2">Math Challenge</h2>
-    <p className="text-slate-400">Feature coming soon...</p>
+    <Calculator size={64} className="text-straw mb-4" />
+    <h2 className="text-2xl font-bold text-ink mb-2">Math Challenge</h2>
+    <p className="text-bamboo">Japanese numbers math test. Coming soon...</p>
   </GlassCard>
 );
 
 const MatrixSearchView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = ({ items }) => (
   <GlassCard className="flex flex-col items-center justify-center min-h-[400px]">
-    <Grid size={64} className="text-pink-400 mb-4" />
-    <h2 className="text-2xl font-bold text-white mb-2">Matrix Search</h2>
-    <p className="text-slate-400">Feature coming soon...</p>
+    <Grid size={64} className="text-hanko mb-4" />
+    <h2 className="text-2xl font-bold text-ink mb-2">Matrix Search</h2>
+    <p className="text-bamboo">Find words in the grid. Coming soon...</p>
   </GlassCard>
 );
 
 const WordScrambleView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = ({ items }) => (
   <GlassCard className="flex flex-col items-center justify-center min-h-[400px]">
-    <Move size={64} className="text-orange-400 mb-4" />
-    <h2 className="text-2xl font-bold text-white mb-2">Word Scramble</h2>
-    <p className="text-slate-400">Feature coming soon...</p>
+    <Move size={64} className="text-straw mb-4" />
+    <h2 className="text-2xl font-bold text-ink mb-2">Word Scramble</h2>
+    <p className="text-bamboo">Unscramble the letters. Coming soon...</p>
   </GlassCard>
 );
+
+const ConversationDetailView: React.FC<{ topic: ConversationTopic; onBack: () => void }> = ({ topic, onBack }) => {
+    const { speak } = useSettings();
+    const [reveal, setReveal] = useState<boolean[]>(new Array(topic.lines.length).fill(false));
+
+    const toggleReveal = (index: number) => {
+        const newReveal = [...reveal];
+        newReveal[index] = !newReveal[index];
+        setReveal(newReveal);
+    };
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" onClick={onBack}><ArrowLeft size={24} /></Button>
+                <div>
+                    <h2 className="text-2xl font-bold text-ink">{topic.title}</h2>
+                    <p className="text-bamboo font-jp">{topic.jpTitle}</p>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                {topic.lines.map((line, i) => (
+                    <GlassCard key={i} className={`flex gap-4 ${line.speaker === 'B' ? 'flex-row-reverse bg-hanko/5' : ''}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold ${line.speaker === 'A' ? 'bg-ink text-white' : 'bg-hanko text-white'}`}>
+                            {line.speaker}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                            <div className="flex justify-between items-start">
+                                <p className="text-xl font-bold font-jp text-ink">{line.ja}</p>
+                                <Button variant="ghost" size="sm" onClick={() => speak(line.ja)}><Volume2 size={16} /></Button>
+                            </div>
+                            <p className="text-hanko font-medium text-sm">{line.romaji}</p>
+                            
+                            <div className="pt-2 border-t border-bamboo/10 cursor-pointer" onClick={() => toggleReveal(i)}>
+                                {reveal[i] ? (
+                                    <div className="animate-fade-in">
+                                        <p className="text-ink text-sm">{line.en}</p>
+                                        <p className="text-bamboo text-xs mt-1">🇧🇩 {line.bn}</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-bamboo/50 text-xs italic flex items-center gap-1"><Eye size={12} /> Click to reveal translation</p>
+                                )}
+                            </div>
+                        </div>
+                    </GlassCard>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const GameArcade: React.FC<{ section: SectionType | null; onSelectGame: (mode: ViewMode) => void }> = ({ section, onSelectGame }) => {
+    
+    const games = [
+        { id: 'match', label: 'Memory Match', desc: 'Find the matching pairs.', icon: Layers, color: 'text-blue-500' },
+        { id: 'typing', label: 'Typing Master', desc: 'Type the Romaji quickly.', icon: Keyboard, color: 'text-hanko' },
+        { id: 'quiz', label: 'Speed Quiz', desc: 'Classic multiple choice.', icon: HelpCircle, color: 'text-green-600' },
+    ];
+
+    if (section === 'grammar') {
+        games.push({ id: 'builder', label: 'Sentence Builder', desc: 'Arrange the words correctly.', icon: PenTool, color: 'text-purple-600' });
+        games.push({ id: 'particle', label: 'Particle Master', desc: 'Choose the correct particle.', icon: Crosshair, color: 'text-orange-500' });
+    } else if (['vocab', 'kanji'].includes(section || '')) {
+         games.push({ id: 'scramble', label: 'Word Scramble', desc: 'Unscramble the characters.', icon: Move, color: 'text-pink-500' });
+         games.push({ id: 'matrix', label: 'Matrix Search', desc: 'Find words in the grid.', icon: Grid, color: 'text-indigo-500' });
+    } else if (section === 'number') {
+        games.push({ id: 'math', label: 'Math Challenge', desc: 'Solve math problems in Japanese.', icon: Calculator, color: 'text-yellow-600' });
+    }
+
+    return (
+        <div className="animate-fade-in">
+            <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-ink mb-2 flex items-center justify-center gap-3">
+                    <Gamepad2 size={32} className="text-hanko" /> Game Arcade
+                </h2>
+                <p className="text-bamboo">Select a challenge to test your skills.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {games.map(game => (
+                    <GlassCard 
+                        key={game.id} 
+                        hoverEffect 
+                        onClick={() => onSelectGame(game.id as ViewMode)}
+                        className="cursor-pointer group flex flex-col items-center text-center py-8 border-t-4 border-t-transparent hover:border-t-hanko transition-all"
+                    >
+                        <div className={`p-4 rounded-2xl bg-rice mb-4 group-hover:scale-110 transition-transform ${game.color} shadow-sm`}>
+                            <game.icon size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold text-ink mb-2">{game.label}</h3>
+                        <p className="text-sm text-bamboo">{game.desc}</p>
+                    </GlassCard>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 // --- MAIN COMPONENT ---
 
@@ -618,6 +1004,7 @@ export const LearningHub: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('People');
   const [selectedCounterGroup, setSelectedCounterGroup] = useState<string>(COUNTER_CATEGORIES[0]);
   const [selectedNumberGroup, setSelectedNumberGroup] = useState<string>(NUMBER_CATEGORIES[0]);
+  const [selectedConversation, setSelectedConversation] = useState<ConversationTopic | null>(null);
   
   // Use global speak & sound
   const { speak, playSound } = useSettings();
@@ -677,13 +1064,20 @@ export const LearningHub: React.FC = () => {
     if (sortMethod === 'az') return sorted.sort((a,b) => a.romaji.localeCompare(b.romaji));
     if (sortMethod === 'length') return sorted.sort((a,b) => a.ja.length - b.ja.length);
     if (sortMethod === 'random') return sorted.sort(() => 0.5 - Math.random());
+    if (sortMethod === 'serial') return items; // Default array order
     
     return sorted; // Default
   };
 
   const currentContent = getContent();
 
-  useEffect(() => { setViewMode('list'); }, [activeSection]);
+  useEffect(() => { 
+      if (activeSection === 'conversation') {
+          setViewMode('conversation'); 
+      } else {
+          setViewMode('list'); 
+      }
+  }, [activeSection]);
 
   const handlePlayAll = async () => {
       if (isPlayingAll) {
@@ -705,86 +1099,109 @@ export const LearningHub: React.FC = () => {
       setIsPlayingAll(false);
   };
 
-  // Define 5 games per section
+  // Define games per section
   const getAvailableModes = () => {
       const base = [
           { id: 'list', label: 'List', icon: BookOpen },
           { id: 'flashcard', label: 'Flashcards', icon: Layers },
       ];
 
+      if (activeSection === 'conversation') return []; // Handled separately
+
       // Add Story Generator for Vocab/Kanji
       if (['vocab', 'kanji'].includes(activeSection || '')) {
           base.push({ id: 'story', label: 'Story Generator', icon: Wand2 });
       }
 
-      if (activeSection === 'kana') {
-          return [
-              ...base,
-              { id: 'quiz', label: 'Quiz', icon: HelpCircle },
-              { id: 'match', label: 'Memory Match', icon: Gamepad2 },
-              { id: 'typing', label: 'Typing Dojo', icon: Keyboard },
-              { id: 'matrix', label: 'Matrix Search', icon: Grid } // 5th game
-          ];
-      }
-      if (['vocab', 'kanji', 'synonym', 'antonym'].includes(activeSection || '')) {
-          return [
-              ...base,
-              { id: 'quiz', label: 'Quiz', icon: HelpCircle },
-              { id: 'match', label: 'Memory Match', icon: Gamepad2 },
-              { id: 'scramble', label: 'Word Scramble', icon: Move }, // 4th
-              { id: 'typing', label: 'Typing Blitz', icon: Keyboard } // 5th
-          ];
-      }
-      if (activeSection === 'grammar') {
-          return [
-              ...base,
-              { id: 'builder', label: 'Sentence Builder', icon: PenTool },
-              { id: 'particle', label: 'Particle Master', icon: Zap }, // Uses QuizView with particle mode
-              { id: 'quiz', label: 'Grammar Quiz', icon: HelpCircle },
-              { id: 'match', label: 'Rule Match', icon: ArrowRightLeft }
-          ];
-      }
-      if (activeSection === 'number' || activeSection === 'counter') {
-          return [
-              ...base,
-              { id: 'math', label: 'Math Dojo', icon: Calculator },
-              { id: 'quiz', label: 'Number Quiz', icon: HelpCircle },
-              { id: 'match', label: 'Value Match', icon: Gamepad2 },
-              { id: 'typing', label: 'Number Type', icon: Keyboard }
-          ];
-      }
-      return base;
+      // Add Universal Games Tab to ALL sections
+      return [
+          ...base,
+          { id: 'games', label: 'Games Arcade', icon: Gamepad2 }
+      ];
   };
 
   const uniqueLessons = Array.from(new Set(VOCAB_DATA.map(v => v.lesson))).sort((a,b) => (a||0) - (b||0));
   const uniqueVocabCats = Array.from(new Set(VOCAB_DATA.map(v => v.category))).filter(Boolean) as string[];
   const uniqueKanjiCats = Array.from(new Set(KANJI_DATA.map(v => v.category))).filter(Boolean) as string[];
 
-  // --- RENDER ---
+  // Helper to check completion
+  const isComplete = (id: string) => completedLessons.includes(id);
+
+  // --- CONVERSATION VIEW RENDER ---
+  if (activeSection === 'conversation') {
+      if (selectedConversation) {
+          return <ConversationDetailView topic={selectedConversation} onBack={() => setSelectedConversation(null)} />;
+      }
+
+      return (
+          <div className="space-y-8 animate-fade-in">
+              <div className="flex items-center gap-4 border-b border-bamboo/10 pb-6">
+                  <Button variant="ghost" onClick={() => setActiveSection(null)} className="p-2 h-auto"><ArrowLeft size={24} /></Button>
+                  <div>
+                      <h1 className="text-4xl font-bold text-ink font-serif mb-1">Conversation Dojo</h1>
+                      <p className="text-bamboo font-medium">Master real-life scenarios through interactive dialogue.</p>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {CONVERSATION_DATA.map(topic => (
+                      <GlassCard 
+                          key={topic.id} 
+                          hoverEffect 
+                          className="cursor-pointer group flex flex-col justify-between border-t-4 border-t-purple-400 min-h-[200px]"
+                          onClick={() => setSelectedConversation(topic)}
+                      >
+                          <div>
+                              <div className="flex justify-between items-start mb-4">
+                                  <div className="p-3 bg-purple-100 text-purple-600 rounded-xl group-hover:scale-110 transition-transform">
+                                      <MessageCircle size={24} />
+                                  </div>
+                                  <Badge color="bg-purple-50 text-purple-600 border-purple-100">N5</Badge>
+                              </div>
+                              <h3 className="text-xl font-bold text-ink mb-1 group-hover:text-purple-700 transition-colors">{topic.title}</h3>
+                              <p className="text-sm text-bamboo font-jp font-bold mb-4">{topic.jpTitle}</p>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-bamboo border-t border-bamboo/10 pt-4 mt-auto">
+                              <span className="flex items-center gap-1 font-mono"><Hash size={12} /> {topic.lines.length} Lines</span>
+                              <div className="flex items-center gap-1 text-purple-600 font-bold group-hover:translate-x-1 transition-transform">
+                                  Start <ArrowRight size={14} />
+                              </div>
+                          </div>
+                      </GlassCard>
+                  ))}
+              </div>
+          </div>
+      );
+  }
+
+  // --- MAIN MENU RENDER ---
   if (!activeSection) {
       const menus = [
-          { id: 'kana', title: 'Hiragana & Katakana', desc: 'Basic, Dakuten, Youon', icon: Languages, color: 'text-pink-400', bg: 'bg-pink-500/20' },
-          { id: 'vocab', title: 'Vocabulary', desc: 'Minna no Nihongo (Lesson/Category)', icon: Book, color: 'text-blue-400', bg: 'bg-blue-500/20' },
-          { id: 'kanji', title: 'Kanji', desc: 'Minna no Nihongo (Lesson/Category)', icon: BookOpen, color: 'text-orange-400', bg: 'bg-orange-500/20' },
-          { id: 'grammar', title: 'Grammar', desc: 'Minna no Nihongo (Lesson Wise)', icon: BookOpen, color: 'text-green-400', bg: 'bg-green-500/20' },
-          { id: 'counter', title: 'Counters', desc: 'Things, Persons, Age...', icon: Scale, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
-          { id: 'number', title: 'Numbers', desc: 'Counting, Month, Time...', icon: Hash, color: 'text-cyan-400', bg: 'bg-cyan-500/20' },
-          { id: 'synonym', title: 'Synonyms', desc: 'Similar words', icon: Copy, color: 'text-purple-400', bg: 'bg-purple-500/20' },
-          { id: 'antonym', title: 'Antonyms', desc: 'Opposite words', icon: ArrowRightLeft, color: 'text-red-400', bg: 'bg-red-500/20' },
+          { id: 'kana', title: 'Hiragana & Katakana', desc: 'The foundation of Japanese writing.', icon: Languages, color: 'text-hanko', bg: 'bg-hanko/10', border: 'border-hanko/20' },
+          { id: 'conversation', title: 'Conversation Dojo', desc: 'Real-life scenarios & dialogues.', icon: MessageCircle, color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200' },
+          { id: 'vocab', title: 'Vocabulary', desc: 'Minna no Nihongo essential words.', icon: Book, color: 'text-ink', bg: 'bg-ink/10', border: 'border-ink/20' },
+          { id: 'kanji', title: 'Kanji', desc: 'Characters and meanings.', icon: BookOpen, color: 'text-straw', bg: 'bg-straw/20', border: 'border-straw/30' },
+          { id: 'grammar', title: 'Grammar', desc: 'Sentence structures and rules.', icon: PenTool, color: 'text-bamboo', bg: 'bg-bamboo/20', border: 'border-bamboo/30' },
+          { id: 'counter', title: 'Counters', desc: 'Counting things, people, dates.', icon: Scale, color: 'text-green-600', bg: 'bg-green-100', border: 'border-green-200' },
+          { id: 'number', title: 'Numbers', desc: 'Time, prices, and math.', icon: Hash, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
+          { id: 'synonym', title: 'Synonyms', desc: 'Similar words expansion.', icon: Copy, color: 'text-pink-500', bg: 'bg-pink-100', border: 'border-pink-200' },
+          { id: 'antonym', title: 'Antonyms', desc: 'Opposites and pairs.', icon: ArrowRightLeft, color: 'text-orange-500', bg: 'bg-orange-100', border: 'border-orange-200' },
       ];
 
       return (
-          <div className="space-y-6">
-              <div>
-                  <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Learning Hub</h1>
-                  <p className="text-slate-500 dark:text-slate-400">Select a category to start studying</p>
+          <div className="space-y-10">
+              <div className="text-center max-w-2xl mx-auto">
+                  <h1 className="text-4xl font-bold text-ink mb-3 font-serif">Learning Hub</h1>
+                  <p className="text-lg text-bamboo">Choose a category to begin your training.</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {menus.map(m => (
-                      <GlassCard key={m.id} hoverEffect onClick={() => setActiveSection(m.id as SectionType)} className="cursor-pointer group">
-                          <div className={`w-12 h-12 rounded-xl ${m.bg} ${m.color} flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}><m.icon size={24} /></div>
-                          <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{m.title}</h3>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">{m.desc}</p>
+                      <GlassCard key={m.id} hoverEffect onClick={() => setActiveSection(m.id as SectionType)} className={`cursor-pointer group border-t-4 ${m.border.replace('border-', 'border-t-')}`}>
+                          <div className={`w-14 h-14 rounded-2xl ${m.bg} ${m.color} flex items-center justify-center mb-5 transition-transform group-hover:scale-110 shadow-sm`}>
+                              <m.icon size={28} />
+                          </div>
+                          <h3 className="text-2xl font-bold text-ink mb-2 group-hover:text-hanko transition-colors">{m.title}</h3>
+                          <p className="text-sm text-bamboo leading-relaxed">{m.desc}</p>
                       </GlassCard>
                   ))}
               </div>
@@ -794,36 +1211,36 @@ export const LearningHub: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-        <div className="flex flex-col xl:flex-row items-start xl:items-center gap-4 border-b border-slate-200 dark:border-white/10 pb-4 justify-between">
+        <div className="flex flex-col xl:flex-row items-start xl:items-center gap-4 border-b border-bamboo/10 pb-4 justify-between">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" onClick={() => setActiveSection(null)} className="p-2 h-auto"><ArrowLeft size={20} /></Button>
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white capitalize">{activeSection === 'kana' ? 'Kana Systems' : activeSection}</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Select a game mode</p>
+                    <h1 className="text-2xl font-bold text-ink capitalize font-serif">{activeSection === 'kana' ? 'Kana Systems' : activeSection}</h1>
+                    <p className="text-sm text-bamboo">Select a game mode</p>
                 </div>
             </div>
-            <div className="flex flex-wrap gap-1 bg-white/50 dark:bg-white/5 p-1 rounded-xl">
+            <div className="flex flex-wrap gap-2 bg-white/40 p-1.5 rounded-xl border border-bamboo/10">
                  {getAvailableModes().map(m => (
-                     <button key={m.id} onClick={() => setViewMode(m.id as any)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === m.id ? 'bg-primary text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-black/5 dark:hover:bg-white/5'}`}>
+                     <button key={m.id} onClick={() => setViewMode(m.id as any)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${viewMode === m.id ? 'bg-hanko text-white shadow-lg' : 'text-bamboo hover:text-hanko hover:bg-white/60'}`}>
                         <m.icon size={16} /> {m.label}
                      </button>
                  ))}
             </div>
         </div>
 
-        {viewMode !== 'list' && viewMode !== 'flashcard' && viewMode !== 'story' && (
+        {viewMode !== 'list' && viewMode !== 'flashcard' && viewMode !== 'story' && viewMode !== 'games' && (
             <DifficultySelector current={difficulty} onChange={setDifficulty} />
         )}
 
-        <GlassCard className="py-4">
+        <GlassCard className="py-6 border-t-4 border-t-bamboo/20">
             {/* Filters UI */}
-            {activeSection === 'kana' && (
+            {activeSection === 'kana' && viewMode !== 'games' && (
                 <div className="flex flex-col md:flex-row gap-6">
-                    <div className="flex gap-2 bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
-                        {['Hiragana', 'Katakana', 'Mixed'].map(sys => <button key={sys} onClick={() => setKanaSystem(sys as any)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${kanaSystem === sys ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}>{sys}</button>)}
+                    <div className="flex gap-2 bg-white/40 p-1 rounded-xl border border-bamboo/10">
+                        {['Hiragana', 'Katakana', 'Mixed'].map(sys => <button key={sys} onClick={() => setKanaSystem(sys as any)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${kanaSystem === sys ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>{sys}</button>)}
                     </div>
                     <div className="flex items-center gap-3">
-                         <span className="text-slate-500 dark:text-slate-400 font-bold text-sm hidden md:block">Variation:</span>
+                         <span className="text-bamboo font-bold text-sm hidden md:block uppercase tracking-widest">Variation</span>
                          <div className="flex gap-2">{['basic', 'dakuten', 'youon'].map(v => <Button key={v} variant={kanaVar === v ? 'primary' : 'secondary'} size="sm" onClick={() => setKanaVar(v as any)} className="capitalize">{v}</Button>)}</div>
                     </div>
                 </div>
@@ -831,22 +1248,22 @@ export const LearningHub: React.FC = () => {
             
             {(activeSection === 'vocab' || activeSection === 'kanji') && (
                 <div className="flex flex-col md:flex-row gap-6 items-center flex-wrap">
-                    <div className="flex gap-2 bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
-                        <button onClick={() => setLessonMode('lesson')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'lesson' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}>Lesson Wise</button>
-                        <button onClick={() => setLessonMode('category')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'category' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:text-primary'}`}>Category Wise</button>
+                    <div className="flex gap-2 bg-white/40 p-1 rounded-xl border border-bamboo/10">
+                        <button onClick={() => setLessonMode('lesson')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'lesson' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>Lesson Wise</button>
+                        <button onClick={() => setLessonMode('category')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'category' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>Category Wise</button>
                     </div>
                     <select 
-                        className="bg-white/50 dark:bg-black/40 text-slate-800 dark:text-white border border-slate-200 dark:border-white/20 rounded-xl px-4 py-2 outline-none focus:border-primary" 
+                        className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko focus:ring-2 focus:ring-hanko/10 transition-all font-medium" 
                         value={lessonMode === 'lesson' ? selectedLesson : selectedCategory} 
                         onChange={(e) => lessonMode === 'lesson' ? setSelectedLesson(Number(e.target.value)) : setSelectedCategory(e.target.value)}
                     >
                         {lessonMode === 'lesson' ? uniqueLessons.map(l => (
-                            <option key={l} value={l}>
-                                Lesson {l} {completedLessons.includes(`${activeSection}-lesson-${l}`) ? '✅' : ''}
+                            <option key={l} value={l} className={isComplete(`${activeSection}-lesson-${l}`) ? "bg-green-100 font-bold text-green-700" : ""}>
+                                Lesson {l} {isComplete(`${activeSection}-lesson-${l}`) ? '✅' : ''}
                             </option>
                         )) : (activeSection === 'vocab' ? uniqueVocabCats : uniqueKanjiCats).map(c => (
-                            <option key={c} value={c}>
-                                {c} {completedLessons.includes(`${activeSection}-cat-${c}`) ? '✅' : ''}
+                            <option key={c} value={c} className={isComplete(`${activeSection}-cat-${c}`) ? "bg-green-100 font-bold text-green-700" : ""}>
+                                {c} {isComplete(`${activeSection}-cat-${c}`) ? '✅' : ''}
                             </option>
                         ))}
                     </select>
@@ -855,8 +1272,8 @@ export const LearningHub: React.FC = () => {
             
             {/* Sorting Controls for List View */}
             {viewMode === 'list' && (
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 flex flex-wrap gap-2 items-center">
-                    <span className="text-xs font-bold uppercase text-slate-400 mr-2">Sort:</span>
+                <div className="mt-6 pt-4 border-t border-bamboo/10 flex flex-wrap gap-3 items-center">
+                    <span className="text-xs font-bold uppercase text-bamboo/60 mr-2 tracking-widest">Sort By</span>
                     <Button size="sm" variant={sortMethod === 'az' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'az' ? 'default' : 'az')}>
                         <SortAsc size={14} /> A-Z
                     </Button>
@@ -866,7 +1283,12 @@ export const LearningHub: React.FC = () => {
                     <Button size="sm" variant={sortMethod === 'random' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'random' ? 'default' : 'random')}>
                         <Shuffle size={14} /> Random
                     </Button>
-                    <div className="h-6 w-px bg-slate-300 dark:bg-white/10 mx-2"></div>
+                    {/* Added Serial Option */}
+                    <Button size="sm" variant={sortMethod === 'serial' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'serial' ? 'default' : 'serial')}>
+                        <ListOrdered size={14} /> Serial
+                    </Button>
+                    
+                    <div className="h-6 w-px bg-bamboo/20 mx-2"></div>
                     <Button size="sm" variant={isPlayingAll ? 'danger' : 'secondary'} onClick={handlePlayAll}>
                          {isPlayingAll ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
                          {isPlayingAll ? 'Stop Lesson' : 'Listen All'}
@@ -876,15 +1298,15 @@ export const LearningHub: React.FC = () => {
             
             {activeSection === 'grammar' && (
                 <div className="flex items-center gap-4">
-                    <span className="text-slate-500 dark:text-slate-400 font-bold">Select Lesson:</span>
+                    <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Select Lesson</span>
                     <select 
-                        className="bg-white/50 dark:bg-black/40 text-slate-800 dark:text-white border border-slate-200 dark:border-white/20 rounded-xl px-4 py-2 outline-none focus:border-primary" 
+                        className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko transition-all font-medium" 
                         value={selectedLesson} 
                         onChange={(e) => setSelectedLesson(Number(e.target.value))}
                     >
                         {uniqueLessons.map(l => (
-                            <option key={l} value={l}>
-                                Lesson {l} {completedLessons.includes(`grammar-lesson-${l}`) ? '✅' : ''}
+                            <option key={l} value={l} className={isComplete(`grammar-lesson-${l}`) ? "bg-green-100 font-bold text-green-700" : ""}>
+                                Lesson {l} {isComplete(`grammar-lesson-${l}`) ? '✅' : ''}
                             </option>
                         ))}
                     </select>
@@ -892,14 +1314,14 @@ export const LearningHub: React.FC = () => {
             )}
             {activeSection === 'counter' && (
                 <div className="flex items-center gap-4">
-                     <span className="text-slate-500 dark:text-slate-400 font-bold">Category:</span>
-                     <select className="bg-white/50 dark:bg-black/40 text-slate-800 dark:text-white border border-slate-200 dark:border-white/20 rounded-xl px-4 py-2 outline-none focus:border-primary w-full md:w-64" value={selectedCounterGroup} onChange={(e) => setSelectedCounterGroup(e.target.value)}>{COUNTER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                     <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Category</span>
+                     <select className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko w-full md:w-64" value={selectedCounterGroup} onChange={(e) => setSelectedCounterGroup(e.target.value)}>{COUNTER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select>
                 </div>
             )}
             {activeSection === 'number' && (
                 <div className="flex items-center gap-4">
-                     <span className="text-slate-500 dark:text-slate-400 font-bold">Category:</span>
-                     <select className="bg-white/50 dark:bg-black/40 text-slate-800 dark:text-white border border-slate-200 dark:border-white/20 rounded-xl px-4 py-2 outline-none focus:border-primary w-full md:w-64" value={selectedNumberGroup} onChange={(e) => setSelectedNumberGroup(e.target.value)}>{NUMBER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                     <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Category</span>
+                     <select className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko w-full md:w-64" value={selectedNumberGroup} onChange={(e) => setSelectedNumberGroup(e.target.value)}>{NUMBER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select>
                 </div>
             )}
         </GlassCard>
@@ -907,31 +1329,42 @@ export const LearningHub: React.FC = () => {
         {viewMode === 'list' && (
             <div className={`grid gap-4 ${activeSection === 'kana' ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                 {currentContent.map((item) => (
-                    <GlassCard key={item.id} className="relative group hover:border-primary/30 transition-all cursor-pointer" onClick={() => speak(item.ja)}>
-                        <div className="absolute top-4 right-4 text-xs text-slate-400 uppercase tracking-widest font-bold">{item.type}</div>
-                        <div className="text-3xl font-jp font-bold text-slate-900 dark:text-white mb-2">{item.ja}</div>
-                        <div className={`font-medium mb-3 ${activeSection === 'synonym' || activeSection === 'antonym' ? 'text-xl text-yellow-500 dark:text-yellow-400 font-jp' : 'text-primary'}`}>{item.romaji}</div>
-                        <div className="pt-3 border-t border-slate-200 dark:border-white/10">
-                            <p className="text-slate-600 dark:text-slate-200">{item.en}</p>
-                            {item.bn && <p className="text-xs text-slate-500 mt-1">🇧🇩 {item.bn}</p>}
-                            {item.usage && <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 bg-black/5 dark:bg-white/5 p-2 rounded">Ex: {item.usage}</p>}
+                    <GlassCard key={item.id} className="relative group hover:border-hanko/30 transition-all cursor-pointer overflow-hidden hover:-translate-y-1" onClick={() => speak(item.ja)}>
+                        
+                        {/* Pronunciation Guide Overlay for Kana */}
+                        {activeSection === 'kana' && (
+                            <div className="absolute inset-0 bg-ink/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 backdrop-blur-[2px]">
+                                <Volume2 className="text-straw mb-2 animate-bounce" size={24} />
+                                <p className="text-white font-bold text-lg capitalize">{item.romaji}</p>
+                                <p className="text-[10px] text-bamboo uppercase tracking-widest mt-1">Pronunciation</p>
+                            </div>
+                        )}
+
+                        <div className="absolute top-4 right-4 text-xs text-bamboo/60 uppercase tracking-widest font-bold border border-bamboo/10 px-2 py-0.5 rounded">{item.type}</div>
+                        <div className="text-3xl font-jp font-bold text-ink mb-2 relative z-10">{item.ja}</div>
+                        <div className={`font-medium mb-3 relative z-10 ${activeSection === 'synonym' || activeSection === 'antonym' ? 'text-xl text-straw font-jp' : 'text-hanko'}`}>{item.romaji}</div>
+                        <div className="pt-3 border-t border-bamboo/10 relative z-10">
+                            <p className="text-ink/80">{item.en}</p>
+                            {item.bn && <p className="text-xs text-bamboo mt-1">🇧🇩 {item.bn}</p>}
+                            {item.usage && <p className="text-xs text-bamboo mt-2 bg-bamboo/5 p-2 rounded italic">Ex: {item.usage}</p>}
                         </div>
                     </GlassCard>
                 ))}
-                {currentContent.length === 0 && <div className="col-span-full text-center py-12 text-slate-500">No content found for this selection.</div>}
+                {currentContent.length === 0 && <div className="col-span-full text-center py-12 text-bamboo">No content found for this selection.</div>}
             </div>
         )}
 
         {viewMode === 'flashcard' && <FlashcardView items={currentContent} />}
         {viewMode === 'quiz' && <QuizView items={currentContent} difficulty={difficulty} onComplete={handleLessonComplete} />}
         {viewMode === 'particle' && <QuizView items={currentContent} difficulty={difficulty} customMode="particle" onComplete={handleLessonComplete} />}
-        {viewMode === 'match' && <MemoryMatchView items={currentContent} difficulty={difficulty} />}
-        {viewMode === 'typing' && <TypingPracticeView items={currentContent} difficulty={difficulty} />}
+        {viewMode === 'match' && <MemoryMatchGame items={currentContent} onExit={() => setViewMode('games')} />}
+        {viewMode === 'typing' && <TypingMasterGame items={currentContent} onExit={() => setViewMode('games')} />}
         {viewMode === 'builder' && <SentenceBuilderView items={currentContent} difficulty={difficulty} />}
         {viewMode === 'math' && <MathChallengeView difficulty={difficulty} />}
         {viewMode === 'matrix' && <MatrixSearchView items={currentContent} difficulty={difficulty} />}
         {viewMode === 'scramble' && <WordScrambleView items={currentContent} difficulty={difficulty} />}
         {viewMode === 'story' && <LessonStoryView items={currentContent} />}
+        {viewMode === 'games' && <GameArcade section={activeSection} onSelectGame={setViewMode} />}
     </div>
   );
 };

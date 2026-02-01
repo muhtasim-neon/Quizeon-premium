@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, BookOpen, Gamepad2, Settings, LogOut, Menu, X, ShieldAlert, 
   GraduationCap, AlertTriangle, FileText, User as UserIcon, Map, Bot, 
-  BookMarked, Sun, Moon, Volume2, VolumeX, Pause, Play, Square,
-  Sliders, ChevronRight
+  BookMarked, Volume2, VolumeX, Sliders
 } from 'lucide-react';
-import { Button, Badge } from './UI';
+import { Button } from './UI';
 import { authService } from '../services/supabaseMock';
 import { User } from '../types';
 import { useSettings } from '../contexts/SettingsContext';
@@ -17,15 +16,48 @@ interface LayoutProps {
   onLogout: () => void;
 }
 
+// Generate random sakura petals
+const SakuraBackground = () => {
+  const [petals, setPetals] = useState<Array<{id: number, left: string, size: string, delay: string, duration: string}>>([]);
+
+  useEffect(() => {
+    // Generate fewer petals for better performance and subtler effect
+    const generated = Array.from({ length: 12 }).map((_, i) => ({
+      id: i,
+      left: `${Math.random() * 90 + 5}%`, // Avoid edges
+      size: `${Math.random() * 8 + 6}px`,
+      delay: `${Math.random() * 15}s`,
+      duration: `${Math.random() * 10 + 10}s` // Slower fall
+    }));
+    setPetals(generated);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+      {petals.map(p => (
+        <div 
+          key={p.id}
+          className="sakura animate-sakura-fall opacity-0"
+          style={{
+            left: p.left,
+            width: p.size,
+            height: p.size,
+            animationDelay: p.delay,
+            animationDuration: p.duration
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showExtendedSettings, setShowExtendedSettings] = useState(false);
   const navigate = useNavigate();
   
-  // Global Settings
   const { 
-    theme, toggleTheme, audioSettings, updateAudioSettings, 
-    stopAudio, pauseAudio, resumeAudio, isSpeaking 
+    audioSettings, updateAudioSettings
   } = useSettings();
 
   const handleLogout = () => {
@@ -38,54 +70,63 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     <NavLink 
       to={to} 
       className={({ isActive }) => 
-        `flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 font-medium text-sm group ${
+        `flex items-center justify-between px-4 py-3.5 mx-2 rounded-xl transition-all duration-300 font-medium text-sm group relative overflow-hidden ${
           isActive 
-            ? 'bg-primary text-white shadow-md shadow-primary/20' 
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+            ? 'bg-hanko/5 text-hanko shadow-sm' 
+            : 'text-bamboo hover:bg-bamboo/5 hover:text-ink'
         }`
       }
       onClick={() => setIsMobileMenuOpen(false)}
     >
       {({ isActive }) => (
         <>
-          <div className="flex items-center gap-3">
-            <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary'} />
-            <span>{label}</span>
+          {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-hanko rounded-r-full"></div>}
+          <div className="flex items-center gap-3 relative z-10">
+            <Icon size={18} className={isActive ? 'text-hanko' : 'text-bamboo/70 group-hover:text-ink transition-colors'} />
+            <span className={isActive ? 'font-bold' : ''}>{label}</span>
           </div>
-          {badge && <span className="text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded font-bold shadow-sm">{badge}</span>}
+          {badge && <span className="text-[10px] bg-hanko text-white px-2 py-0.5 rounded-full font-bold shadow-sm shadow-hanko/20">{badge}</span>}
         </>
       )}
     </NavLink>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-dark-bg flex text-slate-900 dark:text-slate-200 overflow-hidden transition-colors duration-300">
+    <div className="min-h-screen flex text-ink overflow-hidden font-jp bg-rice selection:bg-hanko/20 selection:text-hanko">
       
+      {/* Background Animation */}
+      <SakuraBackground />
+
       {/* Mobile Toggle */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button 
           variant="secondary" 
-          className="p-2.5 rounded-xl shadow-lg border border-slate-200 dark:border-white/10"
+          className="p-2.5 rounded-lg shadow-lg bg-white/80 backdrop-blur-md"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </Button>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - Designed like a scroll/sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transform transition-transform duration-300 lg:translate-x-0 flex flex-col shadow-2xl lg:shadow-none
+        fixed inset-y-0 left-0 z-40 w-72 bg-white/80 backdrop-blur-xl border-r border-bamboo/10 transform transition-transform duration-500 lg:translate-x-0 flex flex-col shadow-2xl shadow-ink/5 lg:shadow-none
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex flex-col h-full p-5">
+        <div className="flex flex-col h-full p-4">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8 px-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg shadow-primary/20">
-              <span className="text-white font-serif font-bold text-xl">Q</span>
+          <div className="flex items-center gap-3 mb-8 px-4 pt-4">
+            <div className="w-10 h-10 rounded-xl bg-ink flex items-center justify-center shadow-lg shadow-ink/20 text-rice">
+              {/* Torii Gate SVG Icon */}
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6c0 0 5-3 9-3s9 3 9 3" />
+                <path d="M5 10h14" />
+                <path d="M8 6v14" />
+                <path d="M16 6v14" />
+              </svg>
             </div>
             <div>
-              <h1 className="font-bold text-lg tracking-tight text-slate-900 dark:text-white">QUIZEON</h1>
-              <p className="text-[10px] text-primary tracking-[0.2em] font-bold uppercase">N5 Mastery</p>
+              <h1 className="font-sans font-extrabold text-2xl tracking-tighter text-ink uppercase">QUIZEON</h1>
             </div>
           </div>
 
@@ -93,7 +134,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
           <nav className="flex-1 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
             {user.role === 'admin' ? (
               <>
-                <div className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-4">Admin</div>
+                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-4 opacity-70">Admin</div>
                 <NavItem to="/admin" icon={ShieldAlert} label="Dashboard" />
                 <NavItem to="/admin/users" icon={GraduationCap} label="Users" />
                 <NavItem to="/admin/content" icon={BookOpen} label="Content CMS" />
@@ -102,20 +143,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
               </>
             ) : (
               <>
-                <div className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-2">Home</div>
+                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-2 opacity-70">Home</div>
                 <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
                 <NavItem to="/roadmap" icon={Map} label="Roadmap" />
                 
-                <div className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-6">AI Dojo</div>
-                <NavItem to="/sensei" icon={Bot} label="Sensei Chat" badge="AI" />
-                <NavItem to="/reading" icon={BookMarked} label="Reading Room" badge="AI" />
-
-                <div className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-6">Learn</div>
+                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">Learn</div>
                 <NavItem to="/learning" icon={BookOpen} label="Learning Hub" />
-                <NavItem to="/practice" icon={GraduationCap} label="Practice Arena" />
-                <NavItem to="/arcade" icon={Gamepad2} label="Arcade Games" />
                 
-                <div className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-6">Tools</div>
+                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">Tools</div>
                 <NavItem to="/mistakes" icon={AlertTriangle} label="Mistake Review" />
                 <NavItem to="/documents" icon={FileText} label="Archives" />
                 <NavItem to="/profile" icon={Settings} label="Settings" />
@@ -123,43 +158,34 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             )}
           </nav>
 
-          {/* Control Bar (Theme & Sound) */}
-          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+          {/* Control Bar */}
+          <div className="mt-4 pt-4 border-t border-bamboo/10 px-2">
              
              {/* Profile Snippet */}
-             <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 mb-4 border border-slate-100 dark:border-slate-800">
-                <img src={user.avatar} alt="Avatar" className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 object-cover" />
-                <div className="flex-1 min-w-0" onClick={() => navigate('/profile')}>
-                   <p className="text-sm font-bold text-slate-800 dark:text-white truncate cursor-pointer hover:text-primary">{user.username}</p>
-                   <p className="text-[10px] text-slate-500 capitalize">{user.role}</p>
+             <div className="flex items-center gap-3 p-3 rounded-xl bg-rice/80 mb-4 border border-bamboo/10 hover:border-bamboo/30 transition-colors cursor-pointer" onClick={() => navigate('/profile')}>
+                <img src={user.avatar} alt="Avatar" className="w-10 h-10 rounded-full bg-rice border-2 border-white shadow-sm object-cover" />
+                <div className="flex-1 min-w-0">
+                   <p className="text-sm font-bold text-ink truncate group-hover:text-hanko transition-colors">{user.username}</p>
+                   <p className="text-[10px] text-bamboo capitalize">{user.role}</p>
                 </div>
-                <button onClick={handleLogout} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Logout">
+                <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="p-2 text-bamboo hover:text-hanko hover:bg-red-50 rounded-lg transition-colors" title="Logout">
                    <LogOut size={16} />
                 </button>
              </div>
 
-             <div className="grid grid-cols-3 gap-2">
-                 <button 
-                    onClick={toggleTheme}
-                    className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group"
-                 >
-                    {theme === 'dark' 
-                        ? <Moon size={18} className="text-purple-400 group-hover:scale-110 transition-transform" /> 
-                        : <Sun size={18} className="text-orange-500 group-hover:scale-110 transition-transform" />}
-                 </button>
-
+             <div className="grid grid-cols-2 gap-2">
                  <button 
                     onClick={() => updateAudioSettings({ muted: !audioSettings.muted })}
-                    className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group"
+                    className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-bamboo/10 transition-colors group border border-transparent hover:border-bamboo/20 bg-white/50"
                  >
                     {audioSettings.muted 
-                        ? <VolumeX size={18} className="text-red-400 group-hover:scale-110 transition-transform" /> 
-                        : <Volume2 size={18} className="text-green-400 group-hover:scale-110 transition-transform" />}
+                        ? <VolumeX size={18} className="text-hanko group-hover:scale-110 transition-transform" /> 
+                        : <Volume2 size={18} className="text-green-600 group-hover:scale-110 transition-transform" />}
                  </button>
 
                  <button 
                     onClick={() => setShowExtendedSettings(!showExtendedSettings)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors group ${showExtendedSettings ? 'bg-primary/10 text-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400'}`}
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors group border border-transparent bg-white/50 ${showExtendedSettings ? 'bg-hanko/5 text-hanko border-hanko/10' : 'hover:bg-bamboo/10 text-bamboo hover:border-bamboo/20'}`}
                  >
                     <Sliders size={18} className="group-hover:scale-110 transition-transform" />
                  </button>
@@ -167,9 +193,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
              {/* Extended Mixer */}
              {showExtendedSettings && (
-                 <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3 animate-fade-in shadow-inner">
-                     <div className="space-y-1">
-                         <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500">
+                 <div className="mt-3 p-4 bg-white/90 rounded-2xl border border-bamboo/10 space-y-4 animate-fade-in shadow-lg absolute bottom-24 left-4 right-4 backdrop-blur-md z-50">
+                     <div className="space-y-2">
+                         <div className="flex justify-between text-[10px] uppercase font-bold text-bamboo">
                              <span>Volume</span>
                              <span>{Math.round(audioSettings.volume * 100)}%</span>
                          </div>
@@ -177,11 +203,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                             type="range" min="0" max="1" step="0.1" 
                             value={audioSettings.volume}
                             onChange={(e) => updateAudioSettings({ volume: parseFloat(e.target.value) })}
-                            className="w-full h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="w-full h-1.5 bg-bamboo/20 rounded-full appearance-none cursor-pointer accent-hanko"
                          />
                      </div>
-                     <div className="space-y-1">
-                         <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500">
+                     <div className="space-y-2">
+                         <div className="flex justify-between text-[10px] uppercase font-bold text-bamboo">
                              <span>Speed</span>
                              <span>{audioSettings.speed}x</span>
                          </div>
@@ -189,7 +215,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                             type="range" min="0.5" max="2" step="0.25" 
                             value={audioSettings.speed}
                             onChange={(e) => updateAudioSettings({ speed: parseFloat(e.target.value) })}
-                            className="w-full h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="w-full h-1.5 bg-bamboo/20 rounded-full appearance-none cursor-pointer accent-hanko"
                          />
                      </div>
                  </div>
@@ -199,8 +225,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-72 relative z-10 overflow-y-auto h-screen scroll-smooth p-4 lg:p-8">
-        <div className="max-w-7xl mx-auto mt-14 lg:mt-0 animate-fade-in pb-10">
+      <main className="flex-1 lg:ml-72 relative z-10 overflow-y-auto h-screen scroll-smooth p-4 lg:p-10">
+        <div className="max-w-7xl mx-auto mt-16 lg:mt-0 animate-ink-bleed pb-12">
           {children}
         </div>
       </main>

@@ -14,8 +14,9 @@ export const GlassCard: React.FC<GlassCardProps> = ({ className, children, hover
   return (
     <div 
       className={cn(
-        "glass-card rounded-2xl p-6 transition-all duration-300", 
-        hoverEffect && "hover-effect cursor-pointer",
+        "shoji-card rounded-2xl p-6 transition-all duration-300 ease-out text-ink border border-white/60 relative", 
+        // Add a subtle paper grain texture via pseudo-element if desired, or keep it clean
+        hoverEffect && "hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(62,39,35,0.15)] cursor-pointer hover:border-bamboo/30 active:scale-[0.99]",
         className
       )} 
       {...props}
@@ -32,23 +33,32 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button: React.FC<ButtonProps> = ({ className, variant = 'primary', size = 'md', children, ...props }) => {
   const variants = {
-    primary: "bg-primary hover:bg-blue-700 dark:hover:bg-blue-500 text-white shadow-md shadow-primary/20 border border-transparent",
-    secondary: "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm",
-    ghost: "bg-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white",
-    danger: "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-200 dark:border-red-500/20",
-    outline: "bg-transparent border-2 border-primary text-primary hover:bg-primary/5"
+    // Primary: Hanko Red (Stamp Color) - Looks like a physical seal
+    primary: "bg-hanko text-white shadow-md shadow-hanko/30 hover:bg-red-700 hover:shadow-lg hover:shadow-hanko/40 active:translate-y-0.5 active:shadow-sm border border-transparent",
+    
+    // Secondary: Bamboo/Paper - Clean and architectural
+    secondary: "bg-white border border-bamboo/20 text-ink hover:bg-rice hover:border-bamboo/40 shadow-sm hover:shadow-md active:translate-y-0.5 text-bamboo hover:text-ink",
+    
+    // Ghost: Minimalist ink
+    ghost: "bg-transparent text-bamboo hover:text-ink hover:bg-bamboo/10 active:bg-bamboo/20",
+    
+    // Danger: Muted Red on Paper
+    danger: "bg-white text-hanko border border-hanko/20 hover:bg-red-50 hover:border-hanko/50 shadow-sm",
+    
+    // Outline: Bamboo Border
+    outline: "bg-transparent border-2 border-bamboo/30 text-bamboo hover:border-bamboo hover:text-ink hover:bg-white/50"
   };
 
   const sizes = {
-    sm: "px-3 py-1.5 text-xs",
-    md: "px-6 py-3 text-sm",
-    lg: "px-8 py-4 text-base"
+    sm: "px-3 py-1.5 text-xs font-bold tracking-wide rounded-lg",
+    md: "px-6 py-3 text-sm font-bold tracking-wide rounded-xl",
+    lg: "px-8 py-4 text-base font-bold tracking-wide rounded-xl"
   };
 
   return (
     <button 
       className={cn(
-        "rounded-xl font-semibold transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2",
+        "transition-all duration-200 flex items-center justify-center gap-2 font-jp select-none transform",
         variants[variant],
         sizes[size],
         className
@@ -68,7 +78,7 @@ export const Input: React.FC<InputProps> = ({ className, label, id, ...props }) 
   return (
     <div className="w-full group">
       {label && (
-        <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 ml-1 group-focus-within:text-primary transition-colors">
+        <label htmlFor={id} className="block text-xs font-bold uppercase tracking-widest text-bamboo mb-2 ml-1 group-focus-within:text-hanko transition-colors">
           {label}
         </label>
       )}
@@ -76,9 +86,9 @@ export const Input: React.FC<InputProps> = ({ className, label, id, ...props }) 
         <input 
           id={id}
           className={cn(
-            "w-full bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3.5",
-            "text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500",
-            "focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all duration-200",
+            "w-full bg-white/60 backdrop-blur-sm border border-bamboo/20 rounded-xl px-4 py-3.5",
+            "text-ink placeholder-bamboo/30 font-medium shadow-inner",
+            "focus:border-hanko/50 focus:ring-4 focus:ring-hanko/5 focus:bg-white outline-none transition-all duration-300",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className
           )}
@@ -89,8 +99,8 @@ export const Input: React.FC<InputProps> = ({ className, label, id, ...props }) 
   );
 };
 
-export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = "bg-primary/10 text-primary border-primary/20" }) => (
-  <span className={cn("px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border", color)}>
+export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = "bg-bamboo/10 text-bamboo border-bamboo/20" }) => (
+  <span className={cn("px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border shadow-sm", color)}>
     {children}
   </span>
 );

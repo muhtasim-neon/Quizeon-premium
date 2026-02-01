@@ -109,3 +109,20 @@ export interface SkillStats {
   A: number; // Current Level
   fullMark: number;
 }
+
+// --- Conversation Types ---
+
+export interface ConversationLine {
+  speaker: 'A' | 'B';
+  ja: string;
+  romaji: string;
+  en: string;
+  bn: string;
+}
+
+export interface ConversationTopic {
+  id: string;
+  title: string; // English Title
+  jpTitle: string; // Japanese Title
+  lines: ConversationLine[];
+}

@@ -8,14 +8,10 @@ import { AdminContent } from './pages/AdminContent';
 import { AdminSettings } from './pages/AdminSettings';
 import { UserDashboard } from './pages/UserDashboard';
 import { LearningHub } from './pages/LearningHub';
-import { PracticeArena } from './pages/PracticeArena';
 import { Mistakes } from './pages/Mistakes';
 import { Documents } from './pages/Documents';
 import { Profile } from './pages/Profile';
 import { Roadmap } from './pages/Roadmap';
-import { SenseiDojo } from './pages/SenseiDojo';
-import { ReadingRoom } from './pages/ReadingRoom';
-import { Arcade } from './pages/Arcade';
 import { authService } from './services/supabaseMock';
 import { supabase } from './services/supabaseClient';
 import { User } from './types';
@@ -91,7 +87,7 @@ function App() {
     setUser(null);
   };
 
-  if (loading) return <div className="min-h-screen bg-slate-50 dark:bg-dark-bg flex items-center justify-center text-primary">Loading...</div>;
+  if (loading) return <div className="min-h-screen bg-rice flex items-center justify-center text-ink">Loading...</div>;
 
   return (
     <SettingsProvider>
@@ -132,11 +128,7 @@ function App() {
                     <Routes>
                         <Route path="/dashboard" element={<UserDashboard user={user} />} />
                         <Route path="/roadmap" element={<Roadmap />} />
-                        <Route path="/sensei" element={<SenseiDojo />} />
-                        <Route path="/reading" element={<ReadingRoom />} />
-                        <Route path="/arcade" element={<Arcade />} />
                         <Route path="/learning" element={<LearningHub />} />
-                        <Route path="/practice" element={<PracticeArena />} />
                         <Route path="/mistakes" element={<Mistakes />} />
                         <Route path="/documents" element={<Documents />} />
                         <Route path="/profile" element={<Profile user={user} onUpdate={setUser} />} />

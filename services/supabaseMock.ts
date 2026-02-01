@@ -53,7 +53,7 @@ const DEFAULT_USERS: User[] = [
     email: 'kenji@gmail.com',
     joinedDate: '2023-10-01',
     lastActive: '1 day ago',
-    mostUsedSection: 'Reading Room'
+    mostUsedSection: 'Conversation Dojo'
   },
   {
     id: 'student-004',
@@ -66,7 +66,7 @@ const DEFAULT_USERS: User[] = [
     email: 'mika@premium.jp',
     joinedDate: '2023-05-10',
     lastActive: 'Now',
-    mostUsedSection: 'Sensei Dojo'
+    mostUsedSection: 'Conversation Dojo'
   }
 ];
 
@@ -75,7 +75,6 @@ const CONTENT_STATS: ContentAnalytics[] = [
   { category: 'N5 Kanji', views: 12500, likes: 450, avgTimeSpent: '12m', userRetention: 85 },
   { category: 'Arcade Games', views: 8900, likes: 1200, avgTimeSpent: '25m', userRetention: 92 },
   { category: 'Grammar Rules', views: 6200, likes: 230, avgTimeSpent: '8m', userRetention: 60 },
-  { category: 'Sensei Chat', views: 4500, likes: 560, avgTimeSpent: '15m', userRetention: 78 },
   { category: 'Vocabulary', views: 15000, likes: 300, avgTimeSpent: '5m', userRetention: 55 },
 ];
 

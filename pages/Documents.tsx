@@ -34,8 +34,8 @@ export const Documents: React.FC = () => {
     <div className="space-y-6">
        <div className="flex justify-between items-center">
             <div>
-                <h1 className="text-3xl font-bold text-white">Study Documents</h1>
-                <p className="text-slate-400">Manage your notes and PDF resources</p>
+                <h1 className="text-3xl font-bold text-ink">Study Documents</h1>
+                <p className="text-bamboo">Manage your notes and PDF resources</p>
             </div>
             <div className="relative">
                 <input 
@@ -46,7 +46,7 @@ export const Documents: React.FC = () => {
                     accept=".pdf,.png,.jpg,.jpeg,.doc"
                 />
                 <label htmlFor="file-upload">
-                    <div className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl cursor-pointer flex items-center gap-2 transition-colors">
+                    <div className="bg-hanko hover:bg-red-700 text-white px-4 py-2 rounded-xl cursor-pointer flex items-center gap-2 transition-colors font-bold shadow-md shadow-hanko/20">
                         <Upload size={18} /> {uploading ? 'Uploading...' : 'Upload File'}
                     </div>
                 </label>
@@ -56,7 +56,7 @@ export const Documents: React.FC = () => {
        {/* Filters */}
        <div className="flex gap-4 mb-4">
             <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 text-slate-500 w-4 h-4" />
+                <Search className="absolute left-3 top-3 text-bamboo w-4 h-4" />
                 <Input placeholder="Search documents..." className="pl-10" />
             </div>
        </div>
@@ -65,17 +65,17 @@ export const Documents: React.FC = () => {
        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
            {docs.map(doc => (
                <GlassCard key={doc.id} className="relative group overflow-hidden">
-                   <div className="h-32 bg-white/5 rounded-lg mb-4 flex items-center justify-center">
-                       {doc.type === 'pdf' ? <FileText size={48} className="text-red-400" /> : <File size={48} className="text-blue-400" />}
+                   <div className="h-32 bg-rice rounded-lg mb-4 flex items-center justify-center border border-bamboo/10">
+                       {doc.type === 'pdf' ? <FileText size={48} className="text-hanko" /> : <File size={48} className="text-blue-500" />}
                    </div>
-                   <h3 className="font-bold text-white truncate">{doc.name}</h3>
-                   <div className="flex justify-between text-xs text-slate-500 mt-2">
+                   <h3 className="font-bold text-ink truncate">{doc.name}</h3>
+                   <div className="flex justify-between text-xs text-bamboo mt-2">
                        <span>{doc.size}</span>
                        <span>{doc.uploadDate}</span>
                    </div>
                    
                    {/* Hover Overlay */}
-                   <div className="absolute inset-0 bg-black/80 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <div className="absolute inset-0 bg-rice/90 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                        <Button variant="secondary" className="rounded-full p-3 h-auto"><Eye size={20} /></Button>
                    </div>
                </GlassCard>

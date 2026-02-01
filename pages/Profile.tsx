@@ -45,8 +45,8 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
-        <p className="text-slate-400">Manage your account information</p>
+        <h1 className="text-3xl font-bold text-ink">Profile Settings</h1>
+        <p className="text-bamboo">Manage your account information</p>
       </div>
 
       <GlassCard>
@@ -57,13 +57,13 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
                     <img 
                         src={avatarSeed !== user.username ? getAvatarUrl() : user.avatar} 
                         alt="Profile" 
-                        className="w-32 h-32 rounded-full border-4 border-white/10 bg-slate-700 object-cover" 
+                        className="w-32 h-32 rounded-full border-4 border-white bg-rice object-cover shadow-lg" 
                     />
-                    <div className="absolute bottom-0 right-0 bg-primary rounded-full p-2 border-4 border-dark-bg cursor-pointer hover:bg-primary-dark transition-colors" onClick={handleRandomizeAvatar} title="Randomize Avatar">
+                    <div className="absolute bottom-0 right-0 bg-hanko rounded-full p-2 border-4 border-rice cursor-pointer hover:bg-red-700 transition-colors" onClick={handleRandomizeAvatar} title="Randomize Avatar">
                         <RefreshCw size={16} className="text-white" />
                     </div>
                 </div>
-                <p className="text-xs text-slate-500">Click the refresh icon to generate a new avatar</p>
+                <p className="text-xs text-bamboo">Click the refresh icon to generate a new avatar</p>
             </div>
 
             {/* Form Fields */}
@@ -77,37 +77,37 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
                 />
 
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">Role</label>
-                        <div className="flex items-center gap-2 text-white font-mono">
-                            <Shield size={16} className="text-primary" />
+                    <div className="p-4 rounded-xl bg-white/40 border border-bamboo/10">
+                        <label className="block text-sm font-medium text-bamboo mb-1">Role</label>
+                        <div className="flex items-center gap-2 text-ink font-mono">
+                            <Shield size={16} className="text-hanko" />
                             <span className="capitalize">{user.role}</span>
                         </div>
                     </div>
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">User ID</label>
-                        <div className="text-white font-mono text-xs truncate opacity-70">
+                    <div className="p-4 rounded-xl bg-white/40 border border-bamboo/10">
+                        <label className="block text-sm font-medium text-bamboo mb-1">User ID</label>
+                        <div className="text-ink font-mono text-xs truncate opacity-70">
                             {user.id}
                         </div>
                     </div>
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">Joined Date</label>
-                        <div className="flex items-center gap-2 text-white font-mono text-sm">
-                            <Calendar size={16} className="text-blue-400" />
+                    <div className="p-4 rounded-xl bg-white/40 border border-bamboo/10">
+                        <label className="block text-sm font-medium text-bamboo mb-1">Joined Date</label>
+                        <div className="flex items-center gap-2 text-ink font-mono text-sm">
+                            <Calendar size={16} className="text-blue-500" />
                             <span>{user.joinedDate || 'N/A'}</span>
                         </div>
                     </div>
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">Last Active</label>
-                        <div className="flex items-center gap-2 text-white font-mono text-sm">
-                            <Clock size={16} className="text-green-400" />
+                    <div className="p-4 rounded-xl bg-white/40 border border-bamboo/10">
+                        <label className="block text-sm font-medium text-bamboo mb-1">Last Active</label>
+                        <div className="flex items-center gap-2 text-ink font-mono text-sm">
+                            <Clock size={16} className="text-green-600" />
                             <span>{user.lastActive || 'Now'}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="pt-4 border-t border-white/10 flex justify-end">
+            <div className="pt-4 border-t border-bamboo/10 flex justify-end">
                 <Button type="submit" disabled={loading}>
                     {loading ? <Loader2 className="animate-spin" /> : <><Save size={18} /> Save Changes</>}
                 </Button>

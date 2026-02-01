@@ -39,31 +39,31 @@ export const SenseiDojo: React.FC = () => {
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col">
       <div className="mb-4">
-        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Bot className="text-primary" /> Sensei Dojo <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded border border-primary/20">Gemini Powered</span>
+        <h1 className="text-3xl font-bold text-ink flex items-center gap-3">
+            <Bot className="text-hanko" /> Sensei Dojo <span className="text-xs bg-hanko/10 text-hanko px-2 py-1 rounded border border-hanko/20">Gemini Powered</span>
         </h1>
-        <p className="text-slate-400">Your personal AI tutor available 24/7.</p>
+        <p className="text-bamboo">Your personal AI tutor available 24/7.</p>
       </div>
 
-      <GlassCard className="flex-1 flex flex-col overflow-hidden !p-0 border-primary/20">
+      <GlassCard className="flex-1 flex flex-col overflow-hidden !p-0 border-bamboo/20">
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {messages.map((msg) => (
                 <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'model' ? 'bg-primary/20 text-primary' : 'bg-slate-700 text-white'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'model' ? 'bg-rice border border-bamboo/20 text-hanko' : 'bg-hanko text-white'}`}>
                         {msg.role === 'model' ? <Bot size={20} /> : <UserIcon size={20} />}
                     </div>
-                    <div className={`max-w-[80%] rounded-2xl p-4 ${msg.role === 'user' ? 'bg-primary text-white' : 'bg-white/5 text-slate-200'}`}>
+                    <div className={`max-w-[80%] rounded-2xl p-4 shadow-sm ${msg.role === 'user' ? 'bg-hanko text-white' : 'bg-white border border-bamboo/10 text-ink'}`}>
                         <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                     </div>
                 </div>
             ))}
             {loading && (
                 <div className="flex gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-rice border border-bamboo/20 text-hanko flex items-center justify-center">
                         <Bot size={20} />
                     </div>
-                    <div className="bg-white/5 rounded-2xl p-4 flex items-center gap-2 text-slate-400">
+                    <div className="bg-white rounded-2xl p-4 flex items-center gap-2 text-bamboo border border-bamboo/10">
                         <Sparkles size={16} className="animate-pulse" /> Sensei is thinking...
                     </div>
                 </div>
@@ -72,10 +72,10 @@ export const SenseiDojo: React.FC = () => {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t border-white/10 bg-black/20">
+        <div className="p-4 border-t border-bamboo/10 bg-white/40">
             <form onSubmit={handleSend} className="flex gap-2">
                 <input 
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors"
+                    className="flex-1 bg-white border border-bamboo/20 rounded-xl px-4 py-3 text-ink focus:outline-none focus:border-hanko transition-colors placeholder-bamboo/50"
                     placeholder="Ask about 'Te-form', 'Particles', or 'Japan'..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}

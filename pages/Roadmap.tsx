@@ -17,20 +17,20 @@ export const Roadmap: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-white mb-2">Road to N5 Mastery</h1>
-        <p className="text-slate-400">Your step-by-step guide to passing the JLPT N5</p>
+        <h1 className="text-3xl font-bold text-ink mb-2">Road to N5 Mastery</h1>
+        <p className="text-bamboo">Your step-by-step guide to passing the JLPT N5</p>
       </div>
 
-      <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-700 before:to-transparent">
+      <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-bamboo/30 before:to-transparent">
         {steps.map((step, idx) => (
           <div key={step.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
             
             {/* Icon Marker */}
             <div className={`
                 flex items-center justify-center w-10 h-10 rounded-full border-4 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow z-10
-                ${step.status === 'completed' ? 'bg-green-500 border-dark-bg text-white' : 
-                  step.status === 'active' ? 'bg-primary border-dark-bg text-white shadow-[0_0_15px_rgba(58,134,255,0.5)]' : 
-                  'bg-dark-bg border-slate-700 text-slate-600'}
+                ${step.status === 'completed' ? 'bg-green-600 border-rice text-white' : 
+                  step.status === 'active' ? 'bg-hanko border-rice text-white shadow-[0_0_15px_rgba(188,47,50,0.5)]' : 
+                  'bg-white border-bamboo/20 text-bamboo'}
             `}>
               {step.status === 'completed' ? <CheckCircle2 size={18} /> : 
                step.status === 'active' ? <Circle size={18} className="animate-pulse fill-current" /> : 
@@ -40,15 +40,15 @@ export const Roadmap: React.FC = () => {
             {/* Content Card */}
             <GlassCard className={`
                 w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 border transition-all duration-300
-                ${step.status === 'active' ? 'border-primary/50 bg-primary/5' : 'border-white/5 opacity-80'}
+                ${step.status === 'active' ? 'border-hanko/50 bg-white shadow-md' : 'border-bamboo/10 bg-white/60'}
             `}>
               <div className="flex justify-between items-start mb-1">
-                <h3 className={`font-bold ${step.status === 'locked' ? 'text-slate-500' : 'text-white'}`}>
+                <h3 className={`font-bold ${step.status === 'locked' ? 'text-bamboo' : 'text-ink'}`}>
                     Lesson {step.id}: {step.title}
                 </h3>
-                {step.status === 'active' && <Badge>Current</Badge>}
+                {step.status === 'active' && <Badge color="bg-hanko/10 text-hanko border-hanko/20">Current</Badge>}
               </div>
-              <p className="text-sm text-slate-400">{step.desc}</p>
+              <p className="text-sm text-bamboo/80">{step.desc}</p>
             </GlassCard>
             
           </div>
