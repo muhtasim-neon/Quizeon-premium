@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -50,6 +51,11 @@ function App() {
 
             // Listen for changes
             const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                // Prevent auto-login flash during signup flow
+                if (sessionStorage.getItem('quizeon_signup_lock') === 'true') {
+                    return;
+                }
+
                 if (session?.user) {
                     const newUser: User = {
                         id: session.user.id,

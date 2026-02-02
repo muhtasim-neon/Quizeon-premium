@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GlassCard, Button, Input } from '../components/UI';
 import { authService } from '../services/supabaseMock';
 import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
-import { Lock, Loader2, Chrome, ArrowRight, Globe, PenTool, User as UserIcon } from 'lucide-react';
+import { Lock, Loader2, Chrome, ArrowRight, Globe, CheckCircle, Mail } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -12,35 +13,77 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [isSignUp, setIsSignUp] = useState(false);
+  
+  // Login Fields
+  const [loginInput, setLoginInput] = useState(''); // Email or Username
+
+  // Signup Fields
+  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
     try {
-      let result;
       if (isSignUp) {
-        result = await authService.signUp(username, password);
+        // --- SIGNUP FLOW ---
+        if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            setLoading(false);
+            return;
+        }
+
+        // Lock auth listener in App.tsx to prevent auto-login flash
+        sessionStorage.setItem('quizeon_signup_lock', 'true');
+
+        try {
+            const result = await authService.signUp(email, username, password);
+            
+            if (result.error) {
+                setError(result.error);
+            } else if (result.message) {
+                // Successful signup!
+                setSuccessMsg(result.message);
+                // Switch to LOGIN mode automatically
+                setIsSignUp(false);
+                // Pre-fill login input for convenience
+                setLoginInput(username);
+                // Clear passwords
+                setPassword('');
+                setConfirmPassword('');
+            } else if (result.user) {
+                // This fallback handles cases where auto-login might still happen (though we disabled it in service)
+                onLogin(result.user);
+                navigate('/dashboard');
+            }
+        } finally {
+            // Remove lock
+            sessionStorage.removeItem('quizeon_signup_lock');
+        }
       } else {
-        result = await authService.signIn(username, password);
+        // --- LOGIN FLOW ---
+        const result = await authService.signIn(loginInput, password);
+        const { user, error: authError } = result;
+        
+        if (authError || !user) {
+          setError(authError || 'Authentication failed');
+        } else {
+          onLogin(user);
+          navigate(user.role === 'admin' ? '/admin' : '/dashboard');
+        }
       }
-      
-      const { user, error: authError } = result;
-      
-      if (authError || !user) {
-        setError(authError || 'Authentication failed');
-      } else {
-        onLogin(user);
-        navigate(user.role === 'admin' ? '/admin' : '/dashboard');
-      }
-    } catch (err) {
-      setError('An unexpected error occurred');
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -52,21 +95,27 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin }
-    });
+    const { user, error } = await authService.signInWithGoogle();
+    
     if (error) {
-        setError(error.message);
+        setError(error);
         setLoading(false);
+    } else if (user) {
+        onLogin(user);
+        navigate('/dashboard');
     }
   };
 
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
     setError('');
+    setSuccessMsg('');
+    // Reset inputs
+    setLoginInput('');
+    setEmail('');
     setUsername('');
     setPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -82,7 +131,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/japanese-asanoha-grey.png')] opacity-10"></div>
         <div className="relative z-10 max-w-xl">
              <div className="inline-flex items-center justify-center w-36 h-36 rounded-3xl bg-ink text-rice shadow-2xl shadow-ink/30 mb-12 animate-ink-bleed">
-                 {/* Large Torii Gate SVG */}
                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M2 6c0 0 5-4 10-4s10 4 10 4" />
                     <path d="M4 10h16" />
@@ -128,32 +176,71 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
              </div>
 
              <div className="space-y-6">
-                <Button 
-                    variant="secondary"
-                    onClick={handleGoogleLogin}
-                    className="w-full py-4 bg-white text-ink border-bamboo/20 hover:bg-rice/50 font-bold"
-                    disabled={loading}
-                >
-                    {loading ? <Loader2 className="animate-spin" /> : <><Chrome size={20} className="text-hanko" /> Continue with Google</>}
-                </Button>
+                {/* Google Login Option */}
+                {!successMsg && !isSignUp && (
+                    <>
+                        <Button 
+                            variant="secondary"
+                            onClick={handleGoogleLogin}
+                            className="w-full py-4 bg-white text-ink border-bamboo/20 hover:bg-rice/50 font-bold"
+                            disabled={loading}
+                        >
+                            {loading ? <Loader2 className="animate-spin" /> : <><Chrome size={20} className="text-hanko" /> Continue with Google</>}
+                        </Button>
 
-                <div className="relative flex py-2 items-center">
-                    <div className="flex-grow border-t border-bamboo/10"></div>
-                    <span className="flex-shrink mx-4 text-bamboo/60 text-xs uppercase font-bold tracking-widest bg-white/0 px-2">Or</span>
-                    <div className="flex-grow border-t border-bamboo/10"></div>
-                </div>
+                        <div className="relative flex py-2 items-center">
+                            <div className="flex-grow border-t border-bamboo/10"></div>
+                            <span className="flex-shrink mx-4 text-bamboo/60 text-xs uppercase font-bold tracking-widest bg-white/0 px-2">Or</span>
+                            <div className="flex-grow border-t border-bamboo/10"></div>
+                        </div>
+                    </>
+                )}
+
+                {/* Success Message Banner */}
+                {successMsg && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3 animate-pop mb-4">
+                        <CheckCircle size={24} className="text-green-600 mt-1 shrink-0" />
+                        <div>
+                            <h3 className="text-sm font-bold text-green-800">Account Created!</h3>
+                            <p className="text-sm text-green-700">{successMsg}</p>
+                        </div>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-4">
-                        <Input 
-                            id="username"
-                            label="Username"
-                            placeholder="e.g. TanakaSan"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                            minLength={3}
-                        />
+                        
+                        {isSignUp ? (
+                            <>
+                                <Input 
+                                    id="signup-email"
+                                    label="Email Address"
+                                    type="email"
+                                    placeholder="your@email.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                                <Input 
+                                    id="signup-username"
+                                    label="Username"
+                                    placeholder="Choose a unique username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    required
+                                    minLength={3}
+                                />
+                            </>
+                        ) : (
+                            <Input 
+                                id="login-input"
+                                label="Username or Email"
+                                placeholder="e.g. TanakaSan or user@mail.com"
+                                value={loginInput}
+                                onChange={(e) => setLoginInput(e.target.value)}
+                                required
+                            />
+                        )}
                         
                         <div>
                             <Input 
@@ -164,14 +251,31 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
-                                minLength={4}
+                                minLength={6}
                             />
-                            {!isSignUp && (
-                                <div className="text-right mt-2">
-                                    <a href="#" className="text-xs text-hanko font-bold hover:underline opacity-80">Forgot password?</a>
-                                </div>
-                            )}
                         </div>
+
+                        {isSignUp && (
+                            <div>
+                                <Input 
+                                    id="confirm-password"
+                                    label="Confirm Password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    required
+                                    minLength={6}
+                                    className={confirmPassword && password !== confirmPassword ? "border-hanko" : ""}
+                                />
+                            </div>
+                        )}
+
+                        {!isSignUp && (
+                            <div className="text-right mt-2">
+                                <a href="#" className="text-xs text-hanko font-bold hover:underline opacity-80">Forgot password?</a>
+                            </div>
+                        )}
                     </div>
 
                     {error && (
@@ -184,7 +288,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <Button type="submit" className="w-full py-4 text-base shadow-xl shadow-hanko/30 mt-4 group" disabled={loading}>
                         {loading ? <Loader2 className="animate-spin" /> : (
                         <span className="flex items-center gap-2">
-                            {isSignUp ? 'Join Dojo' : 'Enter Dojo'} 
+                            {isSignUp ? 'Create Account' : 'Enter Dojo'} 
                             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                         </span>
                         )}
@@ -197,12 +301,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     {isSignUp ? 'Already a member?' : "New here?"}
                     <button 
                         onClick={toggleMode}
+                        type="button"
                         className="ml-2 text-hanko font-bold hover:underline focus:outline-none tracking-wide uppercase text-xs"
                     >
                         {isSignUp ? 'Log In' : 'Sign Up'}
                     </button>
                 </p>
-             </div>
+            </div>
         </GlassCard>
         
         {/* Footer info for mobile */}

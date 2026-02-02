@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export interface User {
@@ -13,6 +14,8 @@ export interface User {
   joinedDate?: string;
   lastActive?: string;
   mostUsedSection?: string; // e.g., 'Arcade', 'Kanji', 'Reading'
+  provider?: string; // e.g., 'email', 'google'
+  metadata?: any; // Store raw Supabase/Auth data for Admin inspection
 }
 
 export interface ContentAnalytics {

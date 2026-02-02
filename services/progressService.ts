@@ -1,21 +1,47 @@
+
 import { LearningItem, MistakeRecord } from '../types';
+import { supabase } from './supabaseClient';
 
 const MISTAKES_KEY = 'quizeon_mistakes';
 const COMPLETED_LESSONS_KEY = 'quizeon_completed_lessons';
 
 export const progressService = {
   // --- XP & Stats ---
-  addXP: (amount: number) => {
+  addXP: async (amount: number) => {
+    let currentXp = 0;
+
+    // 1. Local update
     const userStr = localStorage.getItem('quizeon_user');
     if (userStr) {
       const user = JSON.parse(userStr);
       user.xp = (user.xp || 0) + amount;
+      currentXp = user.xp;
       localStorage.setItem('quizeon_user', JSON.stringify(user));
-      // Dispatch event to update UI immediately if listening
-      window.dispatchEvent(new Event('user-update'));
-      return user.xp;
     }
-    return 0;
+
+    // 2. Supabase update (Sync to Cloud)
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+        // Fetch current meta XP if local wasn't available (e.g. fresh session)
+        const metaXp = session.user.user_metadata.xp || 0;
+        const newXp = (userStr ? currentXp : metaXp + amount);
+
+        // Update User Metadata (easiest way to persist without complex tables)
+        await supabase.auth.updateUser({
+            data: { xp: newXp }
+        });
+        
+        // Optional: Update 'profiles' table if it exists
+        try {
+            await supabase.from('profiles').update({ xp: newXp }).eq('id', session.user.id);
+        } catch (e) {
+            // Ignore table errors if schema doesn't exist
+        }
+    }
+
+    // Dispatch event to update UI immediately
+    window.dispatchEvent(new Event('user-update'));
+    return currentXp;
   },
 
   // --- Mistakes System ---
@@ -36,6 +62,8 @@ export const progressService = {
       });
     }
     localStorage.setItem(MISTAKES_KEY, JSON.stringify(mistakes));
+    
+    // Future: Sync mistakes to Supabase JSON column
   },
 
   getMistakes: (): MistakeRecord[] => {

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { GlassCard, Badge, Button } from '../components/UI';
 import { Users, Server, BookOpen, Activity, AlertCircle, CheckCircle2, Search, Download, TrendingUp, Clock, ThumbsUp } from 'lucide-react';
@@ -9,33 +10,26 @@ export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [contentAnalytics, setContentAnalytics] = useState<ContentAnalytics[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [statsData, logsData, analyticsData] = await Promise.all([
+      const [statsData, logsData, analyticsData, growthData] = await Promise.all([
         dataService.getSystemStats(),
         dataService.getRecentActivity(),
-        dataService.getContentAnalytics()
+        dataService.getContentAnalytics(),
+        dataService.getUserGrowthStats()
       ]);
       setStats(statsData);
       setLogs(logsData as ActivityLog[]);
       setContentAnalytics(analyticsData);
+      setChartData(growthData);
       setLoading(false);
     };
     fetchData();
   }, []);
-
-  const chartData = [
-    { name: 'Mon', users: 400 },
-    { name: 'Tue', users: 300 },
-    { name: 'Wed', users: 500 },
-    { name: 'Thu', users: 280 },
-    { name: 'Fri', users: 590 },
-    { name: 'Sat', users: 320 },
-    { name: 'Sun', users: 450 },
-  ];
 
   if (loading) {
     return <div className="flex items-center justify-center h-96 text-hanko"><span className="animate-pulse">Loading Admin Data...</span></div>;
@@ -46,7 +40,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-ink mb-2">Admin Overview</h1>
-          <p className="text-bamboo">System health, user metrics, and content status.</p>
+          <p className="text-bamboo">Real-time system health and user metrics.</p>
         </div>
         <div className="flex gap-3">
             <Button variant="secondary" className="px-4"><Download size={18} /> Report</Button>
@@ -66,7 +60,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="text-3xl font-bold text-ink">{stats.totalUsers}</div>
           <div className="text-xs text-green-600 mt-2 flex items-center gap-1">
-            <CheckCircle2 size={12} /> +12% from last month
+            <CheckCircle2 size={12} /> Live Count
           </div>
         </GlassCard>
 
@@ -79,7 +73,7 @@ export const AdminDashboard: React.FC = () => {
             <span className="text-bamboo text-sm font-medium">Active Today</span>
           </div>
           <div className="text-3xl font-bold text-ink">{stats.activeToday}</div>
-          <div className="text-xs text-bamboo mt-2">Currently online: 42</div>
+          <div className="text-xs text-bamboo mt-2">Unique Logins</div>
         </GlassCard>
 
         <GlassCard hoverEffect className="relative overflow-hidden group">
@@ -91,7 +85,7 @@ export const AdminDashboard: React.FC = () => {
             <span className="text-bamboo text-sm font-medium">Total Quizzes</span>
           </div>
           <div className="text-3xl font-bold text-ink">{stats.totalQuizzes}</div>
-          <div className="text-xs text-straw mt-2 font-bold">+540 this week</div>
+          <div className="text-xs text-straw mt-2 font-bold">Completed</div>
         </GlassCard>
 
         <GlassCard hoverEffect className="relative overflow-hidden group border-bamboo/20">
@@ -103,7 +97,7 @@ export const AdminDashboard: React.FC = () => {
             <span className="text-bamboo text-sm font-medium">System Status</span>
           </div>
           <div className="text-3xl font-bold text-green-600">{stats.serverStatus}</div>
-          <div className="text-xs text-bamboo mt-2">Latency: 24ms</div>
+          <div className="text-xs text-bamboo mt-2">Supabase Connected</div>
         </GlassCard>
       </div>
 
@@ -111,7 +105,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* User Traffic Chart */}
         <GlassCard className="lg:col-span-2 min-h-[400px] flex flex-col">
-          <h3 className="text-lg font-bold text-ink mb-6">User Traffic (Last 7 Days)</h3>
+          <h3 className="text-lg font-bold text-ink mb-6">User Signups (Last 7 Days)</h3>
           <div className="flex-1 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
@@ -127,6 +121,7 @@ export const AdminDashboard: React.FC = () => {
                   tick={{ fill: '#8d6e63' }} 
                   axisLine={false}
                   tickLine={false}
+                  allowDecimals={false}
                 />
                 <Tooltip 
                   cursor={{ fill: 'rgba(141, 110, 99, 0.1)' }}
@@ -135,7 +130,7 @@ export const AdminDashboard: React.FC = () => {
                 />
                 <Bar dataKey="users" radius={[4, 4, 0, 0]}>
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index === 4 ? '#bc2f32' : '#8d6e63'} fillOpacity={index === 4 ? 1 : 0.6} />
+                    <Cell key={`cell-${index}`} fill={index === 6 ? '#bc2f32' : '#8d6e63'} fillOpacity={index === 6 ? 1 : 0.6} />
                   ))}
                 </Bar>
               </BarChart>
@@ -150,20 +145,24 @@ export const AdminDashboard: React.FC = () => {
             <Button variant="ghost" className="p-2 h-auto text-xs">View All</Button>
           </div>
           <div className="space-y-4">
-            {logs.map((log) => (
-              <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-rice/50 transition-colors border border-transparent hover:border-bamboo/10">
-                <div className={`w-2 h-2 rounded-full mt-2 ${
-                  log.status === 'success' ? 'bg-green-500 shadow-[0_0_8px_rgba(74,222,128,0.5)]' :
-                  log.status === 'warning' ? 'bg-orange-500 shadow-[0_0_8px_rgba(251,146,60,0.5)]' :
-                  'bg-hanko shadow-[0_0_8px_rgba(188,47,50,0.5)]'
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ink">{log.action}</p>
-                  <p className="text-xs text-bamboo">by <span className="text-hanko font-bold">{log.user}</span></p>
+            {logs.length === 0 ? (
+                <div className="text-center text-bamboo py-10">No recent activity found.</div>
+            ) : (
+                logs.map((log) => (
+                <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-rice/50 transition-colors border border-transparent hover:border-bamboo/10">
+                    <div className={`w-2 h-2 rounded-full mt-2 ${
+                    log.status === 'success' ? 'bg-green-500 shadow-[0_0_8px_rgba(74,222,128,0.5)]' :
+                    log.status === 'warning' ? 'bg-orange-500 shadow-[0_0_8px_rgba(251,146,60,0.5)]' :
+                    'bg-hanko shadow-[0_0_8px_rgba(188,47,50,0.5)]'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-ink">{log.action}</p>
+                    <p className="text-xs text-bamboo">by <span className="text-hanko font-bold">{log.user}</span></p>
+                    </div>
+                    <span className="text-[10px] text-bamboo/70 whitespace-nowrap">{log.time}</span>
                 </div>
-                <span className="text-[10px] text-bamboo/70 whitespace-nowrap">{log.time}</span>
-              </div>
-            ))}
+                ))
+            )}
           </div>
         </GlassCard>
       </div>
@@ -173,91 +172,55 @@ export const AdminDashboard: React.FC = () => {
          <GlassCard>
             <h3 className="text-lg font-bold text-ink mb-6 flex items-center gap-2"><TrendingUp size={18} className="text-hanko" /> Popular Content (Views)</h3>
             <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={contentAnalytics} layout="vertical" margin={{ left: 40, right: 20 }}>
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="category" type="category" width={100} tick={{fill: '#8d6e63', fontSize: 12}} axisLine={false} tickLine={false} />
-                        <Tooltip 
-                            cursor={{fill: 'rgba(141, 110, 99, 0.1)'}}
-                            contentStyle={{ backgroundColor: '#fdfaf1', border: '1px solid rgba(141, 110, 99, 0.2)', borderRadius: '8px' }}
-                        />
-                        <Bar dataKey="views" radius={[0, 4, 4, 0]} barSize={20}>
-                            {contentAnalytics.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={'#bc2f32'} fillOpacity={0.8} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
+                {contentAnalytics.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-bamboo">No analytics data available.</div>
+                ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={contentAnalytics} layout="vertical" margin={{ left: 40, right: 20 }}>
+                            <XAxis type="number" hide />
+                            <YAxis dataKey="category" type="category" width={100} tick={{fill: '#8d6e63', fontSize: 12}} axisLine={false} tickLine={false} />
+                            <Tooltip 
+                                cursor={{fill: 'rgba(141, 110, 99, 0.1)'}}
+                                contentStyle={{ backgroundColor: '#fdfaf1', border: '1px solid rgba(141, 110, 99, 0.2)', borderRadius: '8px' }}
+                            />
+                            <Bar dataKey="views" radius={[0, 4, 4, 0]} barSize={20}>
+                                {contentAnalytics.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={'#bc2f32'} fillOpacity={0.8} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                )}
             </div>
          </GlassCard>
 
          <GlassCard>
             <h3 className="text-lg font-bold text-ink mb-6 flex items-center gap-2"><Activity size={18} className="text-green-600" /> Engagement Metrics</h3>
             <div className="space-y-4">
-                {contentAnalytics.slice(0, 5).map((item, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/40 border border-bamboo/10">
-                        <div className="flex-1">
-                            <h4 className="font-bold text-ink text-sm">{item.category}</h4>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-bamboo">
-                                <span className="flex items-center gap-1"><Clock size={12} /> {item.avgTimeSpent}</span>
-                                <span className="flex items-center gap-1"><ThumbsUp size={12} /> {item.likes}</span>
+                {contentAnalytics.length === 0 ? (
+                    <div className="text-center text-bamboo py-10">No engagement data available.</div>
+                ) : (
+                    contentAnalytics.slice(0, 5).map((item, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/40 border border-bamboo/10">
+                            <div className="flex-1">
+                                <h4 className="font-bold text-ink text-sm">{item.category}</h4>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-bamboo">
+                                    <span className="flex items-center gap-1"><Clock size={12} /> {item.avgTimeSpent}</span>
+                                    <span className="flex items-center gap-1"><ThumbsUp size={12} /> {item.likes}</span>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-xs text-bamboo mb-1">Retention</div>
+                                <div className={`font-bold ${item.userRetention > 80 ? 'text-green-600' : 'text-straw'}`}>
+                                    {item.userRetention}%
+                                </div>
                             </div>
                         </div>
-                        <div className="text-right">
-                             <div className="text-xs text-bamboo mb-1">Retention</div>
-                             <div className={`font-bold ${item.userRetention > 80 ? 'text-green-600' : 'text-straw'}`}>
-                                 {item.userRetention}%
-                             </div>
-                        </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
          </GlassCard>
       </div>
-
-      {/* User Management Table Preview */}
-      <GlassCard>
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-bold text-ink">Registered Users</h3>
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-bamboo w-4 h-4" />
-            <input 
-              type="text" 
-              placeholder="Search user..." 
-              className="bg-white/40 border border-bamboo/20 rounded-lg pl-9 pr-4 py-2 text-sm text-ink focus:border-hanko focus:outline-none w-64"
-            />
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-bamboo/10 text-bamboo">
-                <th className="pb-3 pl-2">User</th>
-                <th className="pb-3">Role</th>
-                <th className="pb-3">Status</th>
-                <th className="pb-3">Last Login</th>
-                <th className="pb-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-bamboo/10">
-              {[1,2,3].map(i => (
-                <tr key={i} className="hover:bg-rice/50 transition-colors">
-                  <td className="py-3 pl-2 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-bamboo/20"></div>
-                    <span className="font-medium text-ink">User {i}</span>
-                  </td>
-                  <td className="py-3 text-bamboo">Student</td>
-                  <td className="py-3"><Badge color="bg-green-500/10 text-green-600">Active</Badge></td>
-                  <td className="py-3 text-bamboo/70">2 hours ago</td>
-                  <td className="py-3">
-                    <button className="text-hanko hover:underline font-medium">Edit</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </GlassCard>
     </div>
   );
 };
