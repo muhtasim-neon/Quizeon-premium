@@ -28,11 +28,11 @@ export interface ContentAnalytics {
 
 export interface LearningItem {
   id: string;
-  ja: string; // Japanese text (Kanji/Kana) or Grammar Rule
-  romaji: string;
+  ja: string; // Japanese text (Kanji/Kana) or Grammar Rule or Formal Form
+  romaji: string; // Romaji or Informal Form
   en: string; // English meaning or Explanation
   bn?: string; // Bengali meaning
-  type: 'vocab' | 'kanji' | 'grammar' | 'kana' | 'phrase' | 'conjugation' | 'counter' | 'number';
+  type: 'vocab' | 'kanji' | 'grammar' | 'kana' | 'phrase' | 'conjugation' | 'counter' | 'number' | 'listening' | 'formal_informal';
   category?: string; // General category tag
   
   // Advanced Filtering Fields
@@ -105,6 +105,19 @@ export interface StoryContent {
   bangla?: string; // Added field
   vocab: { word: string; meaning: string }[];
   quiz: { question: string; options: string[]; answer: string }[];
+}
+
+export interface SongLine {
+  kana: string; // Only Hiragana/Katakana
+  romaji: string;
+  en: string;
+  bn: string;
+}
+
+export interface SongContent {
+  title: string;
+  genre: string; // e.g. "Pop", "Rap", "Ballad"
+  lyrics: SongLine[];
 }
 
 export interface SkillStats {

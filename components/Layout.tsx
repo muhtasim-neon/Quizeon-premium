@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, BookOpen, Gamepad2, Settings, LogOut, Menu, X, ShieldAlert, 
   GraduationCap, AlertTriangle, FileText, User as UserIcon, Map, Bot, 
-  BookMarked, Volume2, VolumeX, Sliders
+  BookMarked, Volume2, VolumeX, Sliders, DollarSign, Cpu
 } from 'lucide-react';
 import { Button } from './UI';
 import { authService } from '../services/supabaseMock';
@@ -134,12 +135,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
           <nav className="flex-1 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
             {user.role === 'admin' ? (
               <>
-                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-4 opacity-70">Admin</div>
-                <NavItem to="/admin" icon={ShieldAlert} label="Dashboard" />
-                <NavItem to="/admin/users" icon={GraduationCap} label="Users" />
+                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-4 opacity-70">Core Modules</div>
+                <NavItem to="/admin" icon={LayoutDashboard} label="Dashboard" />
+                <NavItem to="/admin/users" icon={UserIcon} label="User Management" />
                 <NavItem to="/admin/content" icon={BookOpen} label="Content CMS" />
-                <NavItem to="/admin/settings" icon={Settings} label="Settings" />
-                <NavItem to="/profile" icon={UserIcon} label="My Profile" />
+                
+                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">Engine & Finance</div>
+                <NavItem to="/admin/settings" icon={Cpu} label="Game Engine" />
+                <NavItem to="/admin/settings" icon={DollarSign} label="Subscription" />
+                
+                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">System</div>
+                <NavItem to="/admin/settings" icon={ShieldAlert} label="Security & Config" />
               </>
             ) : (
               <>

@@ -5,7 +5,7 @@ import { GlassCard, Button, Input } from '../components/UI';
 import { authService } from '../services/supabaseMock';
 import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
-import { Lock, Loader2, Chrome, ArrowRight, Globe, CheckCircle, Mail } from 'lucide-react';
+import { Lock, Loader2, ArrowRight, Globe, CheckCircle, Mail, RefreshCw } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -13,6 +13,8 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgot, setIsForgot] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'email' | 'password'>('email');
   
   // Login Fields
   const [loginInput, setLoginInput] = useState(''); // Email or Username
@@ -35,7 +37,51 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      if (isSignUp) {
+      if (isForgot) {
+        // --- FORGOT PASSWORD FLOW ---
+        if (forgotStep === 'email') {
+            // Step 1: Input Email -> Proceed directly to Password
+            if (!email || !email.includes('@')) {
+                setError('Please enter a valid email address.');
+                setLoading(false);
+                return;
+            }
+            
+            // Bypass email sending logic. Just move to next step.
+            setForgotStep('password');
+            setSuccessMsg(''); 
+            setPassword('');
+            setConfirmPassword('');
+        } else {
+            // Step 2: Update Password
+            if (password !== confirmPassword) {
+                setError("Passwords do not match.");
+                setLoading(false);
+                return;
+            }
+            if (password.length < 6) {
+                setError("Password must be at least 6 characters.");
+                setLoading(false);
+                return;
+            }
+
+            // Pass the email so we know which account to update (important for mock admin)
+            const result = await authService.updateUserPassword(password, email);
+            if (result.error) {
+                setError(result.error);
+            } else {
+                setSuccessMsg('Password updated successfully! Please log in with your new password.');
+                // Return to login after brief delay
+                setTimeout(() => {
+                    setIsForgot(false);
+                    setForgotStep('email');
+                    setLoginInput(email);
+                    setPassword('');
+                    setSuccessMsg('');
+                }, 2000);
+            }
+        }
+      } else if (isSignUp) {
         // --- SIGNUP FLOW ---
         if (password !== confirmPassword) {
             setError("Passwords do not match.");
@@ -89,25 +135,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    if (!supabase) {
-        setError("Supabase not configured. Check .env keys.");
-        return;
-    }
-    setLoading(true);
-    const { user, error } = await authService.signInWithGoogle();
-    
-    if (error) {
-        setError(error);
-        setLoading(false);
-    } else if (user) {
-        onLogin(user);
-        navigate('/dashboard');
-    }
-  };
-
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
+    setIsForgot(false);
+    setForgotStep('email');
     setError('');
     setSuccessMsg('');
     // Reset inputs
@@ -116,6 +147,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setUsername('');
     setPassword('');
     setConfirmPassword('');
+  };
+
+  const handleForgotToggle = () => {
+      setIsForgot(true);
+      setForgotStep('email');
+      setError('');
+      setSuccessMsg('');
   };
 
   return (
@@ -168,40 +206,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <GlassCard className="w-full max-w-md space-y-10 animate-fade-in shadow-2xl shadow-ink/5 bg-white/80 border-white/80 p-10">
              <div className="text-center">
                  <h2 className="text-4xl font-serif font-bold text-ink mb-3">
-                     {isSignUp ? 'Begin Journey' : 'Welcome Back'}
+                     {isForgot ? 'Reset Password' : (isSignUp ? 'Begin Journey' : 'Welcome Back')}
                  </h2>
                  <p className="text-bamboo text-base">
-                     {isSignUp ? 'Create your profile to start learning.' : 'Enter your credentials to continue.'}
+                     {isForgot 
+                        ? (forgotStep === 'email' ? 'Enter your email to continue.' : 'Create a new secure password.') 
+                        : (isSignUp ? 'Create your profile to start learning.' : 'Enter your credentials to continue.')
+                     }
                  </p>
              </div>
 
              <div className="space-y-6">
-                {/* Google Login Option */}
-                {!successMsg && !isSignUp && (
-                    <>
-                        <Button 
-                            variant="secondary"
-                            onClick={handleGoogleLogin}
-                            className="w-full py-4 bg-white text-ink border-bamboo/20 hover:bg-rice/50 font-bold"
-                            disabled={loading}
-                        >
-                            {loading ? <Loader2 className="animate-spin" /> : <><Chrome size={20} className="text-hanko" /> Continue with Google</>}
-                        </Button>
-
-                        <div className="relative flex py-2 items-center">
-                            <div className="flex-grow border-t border-bamboo/10"></div>
-                            <span className="flex-shrink mx-4 text-bamboo/60 text-xs uppercase font-bold tracking-widest bg-white/0 px-2">Or</span>
-                            <div className="flex-grow border-t border-bamboo/10"></div>
-                        </div>
-                    </>
-                )}
-
                 {/* Success Message Banner */}
                 {successMsg && (
                     <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3 animate-pop mb-4">
                         <CheckCircle size={24} className="text-green-600 mt-1 shrink-0" />
                         <div>
-                            <h3 className="text-sm font-bold text-green-800">Account Created!</h3>
+                            <h3 className="text-sm font-bold text-green-800">{isForgot && forgotStep === 'password' ? 'Verified' : 'Success!'}</h3>
                             <p className="text-sm text-green-700">{successMsg}</p>
                         </div>
                     </div>
@@ -210,70 +231,117 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-4">
                         
-                        {isSignUp ? (
-                            <>
-                                <Input 
-                                    id="signup-email"
-                                    label="Email Address"
-                                    type="email"
-                                    placeholder="your@email.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                                <Input 
-                                    id="signup-username"
-                                    label="Username"
-                                    placeholder="Choose a unique username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    required
-                                    minLength={3}
-                                />
-                            </>
+                        {isForgot ? (
+                             <>
+                                {forgotStep === 'email' ? (
+                                    <Input 
+                                        id="forgot-email"
+                                        label="Email Address"
+                                        type="email"
+                                        placeholder="your@email.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <>
+                                        <div className="p-3 bg-rice/50 rounded-lg text-sm text-bamboo mb-2 border border-bamboo/10 flex items-center gap-2">
+                                            <Mail size={14} /> {email}
+                                        </div>
+                                        <Input 
+                                            id="new-password"
+                                            label="New Password"
+                                            type="password"
+                                            placeholder="Min. 6 characters"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            required
+                                            minLength={6}
+                                            autoFocus
+                                        />
+                                        <Input 
+                                            id="confirm-new-password"
+                                            label="Confirm New Password"
+                                            type="password"
+                                            placeholder="••••••••"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            required
+                                            minLength={6}
+                                            className={confirmPassword && password !== confirmPassword ? "border-hanko" : ""}
+                                        />
+                                    </>
+                                )}
+                             </>
                         ) : (
-                            <Input 
-                                id="login-input"
-                                label="Username or Email"
-                                placeholder="e.g. TanakaSan or user@mail.com"
-                                value={loginInput}
-                                onChange={(e) => setLoginInput(e.target.value)}
-                                required
-                            />
-                        )}
-                        
-                        <div>
-                            <Input 
-                                id="password"
-                                label="Password"
-                                type="password"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                minLength={6}
-                            />
-                        </div>
+                            <>
+                                {isSignUp ? (
+                                    <>
+                                        <Input 
+                                            id="signup-email"
+                                            label="Email Address"
+                                            type="email"
+                                            placeholder="your@email.com"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            required
+                                        />
+                                        <Input 
+                                            id="signup-username"
+                                            label="Username"
+                                            placeholder="Choose a unique username"
+                                            value={username}
+                                            onChange={(e) => setUsername(e.target.value)}
+                                            required
+                                            minLength={3}
+                                        />
+                                    </>
+                                ) : (
+                                    <Input 
+                                        id="login-input"
+                                        label="Username or Email"
+                                        placeholder="e.g. TanakaSan or user@mail.com"
+                                        value={loginInput}
+                                        onChange={(e) => setLoginInput(e.target.value)}
+                                        required
+                                    />
+                                )}
+                                
+                                <div>
+                                    <Input 
+                                        id="password"
+                                        label="Password"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        minLength={6}
+                                    />
+                                </div>
 
-                        {isSignUp && (
-                            <div>
-                                <Input 
-                                    id="confirm-password"
-                                    label="Confirm Password"
-                                    type="password"
-                                    placeholder="••••••••"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    required
-                                    minLength={6}
-                                    className={confirmPassword && password !== confirmPassword ? "border-hanko" : ""}
-                                />
-                            </div>
+                                {isSignUp && (
+                                    <div>
+                                        <Input 
+                                            id="confirm-password"
+                                            label="Confirm Password"
+                                            type="password"
+                                            placeholder="••••••••"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            required
+                                            minLength={6}
+                                            className={confirmPassword && password !== confirmPassword ? "border-hanko" : ""}
+                                        />
+                                    </div>
+                                )}
+                            </>
                         )}
 
-                        {!isSignUp && (
+                        {!isSignUp && !isForgot && (
                             <div className="text-right mt-2">
-                                <a href="#" className="text-xs text-hanko font-bold hover:underline opacity-80">Forgot password?</a>
+                                <button type="button" onClick={handleForgotToggle} className="text-xs text-hanko font-bold hover:underline opacity-80">Forgot password?</button>
                             </div>
                         )}
                     </div>
@@ -288,8 +356,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <Button type="submit" className="w-full py-4 text-base shadow-xl shadow-hanko/30 mt-4 group" disabled={loading}>
                         {loading ? <Loader2 className="animate-spin" /> : (
                         <span className="flex items-center gap-2">
-                            {isSignUp ? 'Create Account' : 'Enter Dojo'} 
-                            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                            {isForgot 
+                                ? (forgotStep === 'email' ? 'Next' : 'Update Password') 
+                                : (isSignUp ? 'Create Account' : 'Enter Dojo')
+                            } 
+                            {!isForgot && <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />}
+                            {isForgot && forgotStep === 'password' && <RefreshCw size={18} />}
                         </span>
                         )}
                     </Button>
@@ -298,14 +370,26 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
              <div className="text-center pt-6 border-t border-bamboo/10">
                 <p className="text-bamboo text-sm">
-                    {isSignUp ? 'Already a member?' : "New here?"}
-                    <button 
-                        onClick={toggleMode}
-                        type="button"
-                        className="ml-2 text-hanko font-bold hover:underline focus:outline-none tracking-wide uppercase text-xs"
-                    >
-                        {isSignUp ? 'Log In' : 'Sign Up'}
-                    </button>
+                    {isForgot ? (
+                        <button 
+                            onClick={() => { setIsForgot(false); setForgotStep('email'); setError(''); setSuccessMsg(''); }}
+                            type="button"
+                            className="text-hanko font-bold hover:underline focus:outline-none tracking-wide uppercase text-xs"
+                        >
+                            Back to Login
+                        </button>
+                    ) : (
+                        <>
+                            {isSignUp ? 'Already a member?' : "New here?"}
+                            <button 
+                                onClick={toggleMode}
+                                type="button"
+                                className="ml-2 text-hanko font-bold hover:underline focus:outline-none tracking-wide uppercase text-xs"
+                            >
+                                {isSignUp ? 'Log In' : 'Sign Up'}
+                            </button>
+                        </>
+                    )}
                 </p>
             </div>
         </GlassCard>

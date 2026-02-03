@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
 
-// Removed 'Theme' type as we are strictly using the Washi theme now.
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface AudioSettings {
   volume: number; // 0.0 to 1.0
@@ -11,16 +10,15 @@ interface AudioSettings {
 export type SoundType = 'correct' | 'wrong' | 'flip' | 'laser' | 'hit' | 'gameover' | 'click' | 'success';
 
 interface SettingsContextType {
-  // theme: Theme; // Removed
-  // toggleTheme: () => void; // Removed
   audioSettings: AudioSettings;
   updateAudioSettings: (settings: Partial<AudioSettings>) => void;
-  speak: (text: string, lang?: string) => void;
+  speak: (text: string, lang?: string) => Promise<void>;
   playSound: (type: SoundType) => void;
   stopAudio: () => void;
   pauseAudio: () => void;
   resumeAudio: () => void;
   isSpeaking: boolean;
+  isPaused: boolean;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -33,16 +31,18 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Persist Audio
   useEffect(() => {
     localStorage.setItem('quizeon_audio', JSON.stringify(audioSettings));
   }, [audioSettings]);
 
-  // Monitor Speech Status
+  // Monitor Speech Status periodically to ensure state sync
   useEffect(() => {
     const interval = setInterval(() => {
       setIsSpeaking(window.speechSynthesis.speaking);
+      setIsPaused(window.speechSynthesis.paused);
     }, 200);
     return () => clearInterval(interval);
   }, []);
@@ -51,21 +51,39 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setAudioSettings(prev => ({ ...prev, ...newSettings }));
   };
 
-  const speak = (text: string, lang = 'ja-JP') => {
-    if (audioSettings.muted) return;
+  const speak = (text: string, lang = 'ja-JP'): Promise<void> => {
+    if (audioSettings.muted) return Promise.resolve();
     
-    window.speechSynthesis.cancel(); // Stop current
+    // Cancel existing speech
+    window.speechSynthesis.cancel();
+    setIsPaused(false);
+    setIsSpeaking(true);
     
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.volume = audioSettings.volume;
-    utterance.rate = audioSettings.speed;
-    
-    // Add event listeners if needed
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    
-    window.speechSynthesis.speak(utterance);
+    return new Promise((resolve) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        utterance.volume = audioSettings.volume;
+        utterance.rate = audioSettings.speed;
+        
+        utterance.onstart = () => {
+            setIsSpeaking(true);
+            setIsPaused(false);
+        };
+        
+        utterance.onend = () => {
+            setIsSpeaking(false);
+            setIsPaused(false);
+            resolve();
+        };
+
+        utterance.onerror = () => {
+            setIsSpeaking(false);
+            setIsPaused(false);
+            resolve();
+        };
+        
+        window.speechSynthesis.speak(utterance);
+    });
   };
 
   const playSound = (type: SoundType) => {
@@ -85,14 +103,26 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const url = sounds[type];
     if (url) {
         const audio = new Audio(url);
-        audio.volume = Math.min(audioSettings.volume, 1.0); // Ensure valid range, scale if needed
+        audio.volume = Math.min(audioSettings.volume, 1.0);
         audio.play().catch(e => console.log('Audio play failed', e));
     }
   };
 
-  const stopAudio = () => window.speechSynthesis.cancel();
-  const pauseAudio = () => window.speechSynthesis.pause();
-  const resumeAudio = () => window.speechSynthesis.resume();
+  const stopAudio = () => {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setIsPaused(false);
+  };
+
+  const pauseAudio = () => {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+  };
+
+  const resumeAudio = () => {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+  };
 
   return (
     <SettingsContext.Provider value={{
@@ -103,7 +133,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       stopAudio,
       pauseAudio,
       resumeAudio,
-      isSpeaking
+      isSpeaking,
+      isPaused
     }}>
       {children}
     </SettingsContext.Provider>

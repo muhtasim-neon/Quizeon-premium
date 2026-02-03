@@ -1,5 +1,6 @@
+
 import { GoogleGenAI } from "@google/genai";
-import { StoryContent, LearningItem } from "../types";
+import { StoryContent, LearningItem, SongContent } from "../types";
 
 // In a real environment, this comes from process.env.API_KEY
 // We wrap this to prevent crashing if key is missing in demo
@@ -88,6 +89,65 @@ export const aiService = {
             { question: "What did they drink?", options: ["Tea", "Water", "Coffee"], answer: "Coffee" }
         ]
       };
+    }
+  },
+
+  /**
+   * Generate a Song based on vocabulary
+   */
+  generateSong: async (items: LearningItem[]): Promise<SongContent> => {
+    try {
+      if (apiKey === 'DEMO_KEY') throw new Error("No API Key");
+
+      // Increased limit to 40 to include most words in a typical lesson
+      const words = items.slice(0, 40).map(v => `${v.ja} (${v.en})`).join(', ');
+      
+      const prompt = `
+      Create a simple, catchy song using these Japanese vocabulary words: ${words}.
+      Try to incorporate as many of the provided words as possible into the lyrics naturally.
+      
+      RULES:
+      1. The "kana" field MUST contain ONLY Hiragana and Katakana. Do NOT use Kanji at all.
+      2. Keep the sentences simple (N5 level).
+      3. Provide a line-by-line translation in English and Bangla.
+      
+      Return ONLY valid JSON with this structure:
+      {
+        "title": "Song Title (in Kana)",
+        "genre": "Pop / Rap / Ballad / Folk",
+        "lyrics": [
+            { 
+              "kana": "Japanese line in Hiragana/Katakana ONLY",
+              "romaji": "Romaji reading",
+              "en": "English meaning", 
+              "bn": "Bangla meaning" 
+            }
+        ]
+      }`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-latest',
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
+      });
+      
+      const text = response.text || "{}";
+      return JSON.parse(text);
+
+    } catch (error) {
+        console.warn("AI Service unavailable (Demo Mode)");
+        await new Promise(r => setTimeout(r, 1500));
+        return {
+            title: "がっこう の うた",
+            genre: "Happy Pop",
+            lyrics: [
+                { kana: "わたし は がくせい です", romaji: "Watashi wa gakusei desu", en: "I am a student", bn: "আমি একজন ছাত্র" },
+                { kana: "せんせい おはよう ございます", romaji: "Sensei ohayou gozaimasu", en: "Teacher, good morning", bn: "শিক্ষক, শুভ সকাল" },
+                { kana: "ほん を よみます", romaji: "Hon o yomimasu", en: "I read a book", bn: "আমি বই পড়ি" },
+                { kana: "がっこう へ いきます", romaji: "Gakkou e ikimasu", en: "I go to school", bn: "আমি স্কুলে যাই" },
+                { kana: "べんきょう は たのしい です", romaji: "Benkyou wa tanoshii desu", en: "Studying is fun", bn: "পড়াশোনা করা মজার" }
+            ]
+        };
     }
   }
 };
