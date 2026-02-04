@@ -2,9 +2,9 @@
 import React from 'react';
 import { GlassCard, Button, Badge } from '../components/UI';
 import { 
-  Trophy, Star, TrendingUp, Target, Zap, AlertCircle, 
-  Gamepad2, CheckCircle2, Medal, Crown, Flame, 
-  Brain, ArrowRight, Layout, ShieldAlert, GraduationCap, Play, Timer
+  Trophy, TrendingUp, Target, Zap, AlertCircle, 
+  Gamepad2, CheckCircle2, Medal, Flame, 
+  Brain, Timer, GraduationCap, Keyboard
 } from 'lucide-react';
 import { User, SkillStats } from '../types';
 import { 
@@ -32,9 +32,7 @@ const PowerMetrics = () => {
                 <div className="absolute top-[-10px] right-[-10px] text-purple-50 group-hover:text-purple-100 transition-colors pointer-events-none">
                     <Brain size={70} />
                 </div>
-                <div className="text-3xl font-black text-purple-600 mb-1 relative z-10">
-                    68%
-                </div>
+                <div className="text-3xl font-black text-purple-600 mb-1 relative z-10">68%</div>
                 <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
                     <Brain size={12} /> Mastery Score
                 </div>
@@ -44,9 +42,7 @@ const PowerMetrics = () => {
                  <div className="absolute top-[-10px] right-[-10px] text-yellow-50 group-hover:text-yellow-100 transition-colors pointer-events-none">
                     <Zap size={70} />
                 </div>
-                <div className="text-3xl font-black text-yellow-600 mb-1 relative z-10">
-                    85%
-                </div>
+                <div className="text-3xl font-black text-yellow-600 mb-1 relative z-10">85%</div>
                 <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
                     <Zap size={12} /> Avg Accuracy
                 </div>
@@ -56,9 +52,7 @@ const PowerMetrics = () => {
                  <div className="absolute top-[-10px] right-[-10px] text-green-50 group-hover:text-green-100 transition-colors pointer-events-none">
                     <Timer size={70} />
                 </div>
-                <div className="text-3xl font-black text-green-600 mb-1 relative z-10">
-                    1.2s
-                </div>
+                <div className="text-3xl font-black text-green-600 mb-1 relative z-10">1.2s</div>
                 <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
                     <Timer size={12} /> Fastest Answer
                 </div>
@@ -68,9 +62,7 @@ const PowerMetrics = () => {
                  <div className="absolute top-[-10px] right-[-10px] text-red-50 group-hover:text-red-100 transition-colors pointer-events-none">
                     <Target size={70} />
                 </div>
-                <div className="text-lg font-black text-hanko mb-1 mt-1 truncate w-full px-1 relative z-10">
-                    Memory Match
-                </div>
+                <div className="text-lg font-black text-hanko mb-1 mt-1 truncate w-full px-1 relative z-10">Memory Match</div>
                 <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
                     <Target size={12} /> Best Game
                 </div>
@@ -80,12 +72,12 @@ const PowerMetrics = () => {
 };
 
 const ExamReadinessCard = () => {
-    const readiness = 65; // Mock data
+    const readiness = 65; 
     const data = [
         { name: 'Ready', value: readiness },
         { name: 'Not Ready', value: 100 - readiness }
     ];
-    const COLORS = ['#c93a40', '#e0e0e0']; // Hanko red & gray
+    const COLORS = ['#c93a40', '#e0e0e0']; 
 
     return (
         <GlassCard className="flex flex-col justify-between h-full relative overflow-hidden">
@@ -190,33 +182,6 @@ const WeakAreaCard = () => {
     );
 };
 
-const TodayGamesCard = ({ navigate }: { navigate: any }) => {
-    return (
-        <div className="grid grid-cols-2 gap-4 h-full">
-            <div 
-                className="bg-white/60 border border-bamboo/10 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all group"
-                onClick={() => navigate('/learning')}
-            >
-                <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                    <Gamepad2 size={24} />
-                </div>
-                <div className="font-bold text-ink text-sm">Memory Match</div>
-                <div className="text-[10px] text-bamboo">Vocab Training</div>
-            </div>
-            <div 
-                className="bg-white/60 border border-bamboo/10 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white hover:shadow-md hover:scale-[1.02] transition-all group"
-                onClick={() => navigate('/learning')}
-            >
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                    <Zap size={24} />
-                </div>
-                <div className="font-bold text-ink text-sm">Speed Typing</div>
-                <div className="text-[10px] text-bamboo">Kana Reflex</div>
-            </div>
-        </div>
-    );
-};
-
 const AchievementsCard = () => {
     const badges = [
         { id: 1, icon: "🌱", name: "First Step", unlocked: true },
@@ -260,7 +225,7 @@ const ProgressRadar = () => {
             <h3 className="font-bold text-ink text-lg flex items-center gap-2 mb-2">
                 <TrendingUp size={20} className="text-blue-600" /> Progress Overview
             </h3>
-            <div className="flex-1 w-full min-h-[200px]">
+            <div className="w-full h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                         <PolarGrid stroke="#8d6e63" strokeOpacity={0.2} />
@@ -274,8 +239,6 @@ const ProgressRadar = () => {
     );
 };
 
-// --- MAIN PAGE ---
-
 export const UserDashboard: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
   const rank = getRank(user.xp || 0);
@@ -284,12 +247,8 @@ export const UserDashboard: React.FC<{ user: User }> = ({ user }) => {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
-      
-      {/* 1. PROFILE + XP HEADER */}
       <div className="flex flex-col md:flex-row items-center gap-6 bg-white/60 backdrop-blur-md p-6 rounded-3xl border border-white shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-hanko/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-          
-          {/* Avatar & Info */}
           <div className="flex items-center gap-6 z-10 w-full md:w-auto">
               <div className="relative">
                   <img src={user.avatar} alt="User" className="w-20 h-20 rounded-full border-4 border-white shadow-md bg-rice object-cover" />
@@ -312,7 +271,6 @@ export const UserDashboard: React.FC<{ user: User }> = ({ user }) => {
               </div>
           </div>
 
-          {/* XP Bar */}
           <div className="flex-1 w-full z-10 px-0 md:px-8">
               <div className="flex justify-between text-xs font-bold text-bamboo mb-2 uppercase tracking-widest">
                   <span>Current XP: {user.xp}</span>
@@ -328,7 +286,6 @@ export const UserDashboard: React.FC<{ user: User }> = ({ user }) => {
               </div>
           </div>
 
-          {/* Quick Streak */}
           <div className="flex flex-col items-center justify-center p-3 bg-white/50 rounded-2xl border border-bamboo/10 min-w-[80px]">
               <Flame size={24} className="text-hanko mb-1" />
               <span className="text-xl font-bold text-ink">{user.streak || 0}</span>
@@ -336,53 +293,46 @@ export const UserDashboard: React.FC<{ user: User }> = ({ user }) => {
           </div>
       </div>
 
-      {/* 2. POWER METRICS (MOTIVATION LAYER) */}
       <PowerMetrics />
 
-      {/* 3. MAIN GRID LAYOUT */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          
-          {/* Row 1: Left (8 cols) & Right (4 cols) */}
-          
-          {/* Today's Goal */}
           <div className="md:col-span-4 h-64">
               <TodayGoalCard />
           </div>
 
-          {/* Today's Games */}
           <div className="md:col-span-4 h-64">
               <GlassCard className="h-full flex flex-col">
                   <h3 className="font-bold text-ink text-lg flex items-center gap-2 mb-4">
                       <Gamepad2 size={20} className="text-purple-600" /> Today's Games
                   </h3>
-                  <div className="flex-1">
-                      <TodayGamesCard navigate={navigate} />
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                      <div onClick={() => navigate('/learning')} className="bg-rice/50 rounded-xl p-2 text-center cursor-pointer hover:bg-white transition-colors border border-bamboo/5">
+                        <Timer className="mx-auto mb-1 text-purple-500" size={20} />
+                        <span className="text-[10px] font-bold uppercase">Match</span>
+                      </div>
+                      <div onClick={() => navigate('/learning')} className="bg-rice/50 rounded-xl p-2 text-center cursor-pointer hover:bg-white transition-colors border border-bamboo/5">
+                        <Keyboard className="mx-auto mb-1 text-blue-500" size={20} />
+                        <span className="text-[10px] font-bold uppercase">Typing</span>
+                      </div>
                   </div>
               </GlassCard>
           </div>
 
-          {/* Exam Readiness */}
           <div className="md:col-span-4 h-64">
               <ExamReadinessCard />
           </div>
 
-          {/* Row 2: Stats & Weak Areas */}
-
-          {/* Progress Overview */}
           <div className="md:col-span-4 h-72">
               <ProgressRadar />
           </div>
 
-          {/* Weak Area Recommendation */}
           <div className="md:col-span-4 h-72">
               <WeakAreaCard />
           </div>
 
-          {/* Achievements (Span remaining or separate) */}
           <div className="md:col-span-4 h-72">
               <AchievementsCard />
           </div>
-
       </div>
     </div>
   );

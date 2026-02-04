@@ -13,6 +13,9 @@ import { Mistakes } from './pages/Mistakes';
 import { Documents } from './pages/Documents';
 import { Profile } from './pages/Profile';
 import { Roadmap } from './pages/Roadmap';
+import { SenseiDojo } from './pages/SenseiDojo';
+import { ReadingRoom } from './pages/ReadingRoom';
+import { Subscription } from './pages/Subscription';
 import { authService } from './services/supabaseMock';
 import { supabase } from './services/supabaseClient';
 import { User } from './types';
@@ -135,9 +138,12 @@ function App() {
                         <Route path="/dashboard" element={<UserDashboard user={user} />} />
                         <Route path="/roadmap" element={<Roadmap />} />
                         <Route path="/learning" element={<LearningHub />} />
+                        <Route path="/sensei" element={<SenseiDojo />} />
+                        <Route path="/reading" element={<ReadingRoom />} />
                         <Route path="/mistakes" element={<Mistakes />} />
                         <Route path="/documents" element={<Documents />} />
                         <Route path="/profile" element={<Profile user={user} onUpdate={setUser} />} />
+                        <Route path="/subscription" element={<Subscription />} />
                         <Route path="*" element={<Navigate to="/dashboard" />} />
                     </Routes>
                     </Layout>

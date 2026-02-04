@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 interface AudioSettings {
   volume: number; // 0.0 to 1.0
@@ -24,7 +24,6 @@ interface SettingsContextType {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Audio State
   const [audioSettings, setAudioSettings] = useState<AudioSettings>(() => {
     const saved = localStorage.getItem('quizeon_audio');
     return saved ? JSON.parse(saved) : { volume: 1, speed: 1, muted: false };
@@ -32,13 +31,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  
+  // Ref to prevent garbage collection of the utterance object during long sequences
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Persist Audio
   useEffect(() => {
     localStorage.setItem('quizeon_audio', JSON.stringify(audioSettings));
   }, [audioSettings]);
 
-  // Monitor Speech Status periodically to ensure state sync
   useEffect(() => {
     const interval = setInterval(() => {
       setIsSpeaking(window.speechSynthesis.speaking);
@@ -52,76 +52,69 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const speak = (text: string, lang = 'ja-JP'): Promise<void> => {
-    if (audioSettings.muted) return Promise.resolve();
-    
-    // Cancel existing speech
-    window.speechSynthesis.cancel();
-    setIsPaused(false);
-    setIsSpeaking(true);
-    
     return new Promise((resolve) => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang;
-        utterance.volume = audioSettings.volume;
-        utterance.rate = audioSettings.speed;
-        
-        utterance.onstart = () => {
-            setIsSpeaking(true);
-            setIsPaused(false);
-        };
-        
-        utterance.onend = () => {
-            setIsSpeaking(false);
-            setIsPaused(false);
-            resolve();
-        };
+      if (audioSettings.muted) {
+        resolve();
+        return;
+      }
+      
+      // Cancel any pending speech before starting new one
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utteranceRef.current = utterance; // Keep reference to prevent GC
+      
+      utterance.lang = lang;
+      utterance.volume = audioSettings.volume;
+      utterance.rate = audioSettings.speed;
+      
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setIsPaused(false);
+      };
+      
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        utteranceRef.current = null;
+        resolve();
+      };
 
-        utterance.onerror = () => {
-            setIsSpeaking(false);
-            setIsPaused(false);
-            resolve();
-        };
-        
-        window.speechSynthesis.speak(utterance);
+      utterance.onerror = (event) => {
+        // Interrupted is normal when switching words quickly
+        if (event.error !== 'interrupted') {
+          console.error('SpeechSynthesis error:', event);
+        }
+        setIsSpeaking(false);
+        setIsPaused(false);
+        utteranceRef.current = null;
+        resolve();
+      };
+      
+      window.speechSynthesis.speak(utterance);
     });
   };
 
   const playSound = (type: SoundType) => {
-    if (audioSettings.muted) return;
-
-    const sounds: Record<SoundType, string> = {
-        correct: 'https://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a',
-        wrong: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/explosion.mp3',
-        flip: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/thrust.mp3',
-        laser: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/missile.mp3',
-        hit: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/explosion.mp3',
-        gameover: 'https://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/soundtrack.mp3', 
-        click: 'https://commondatastorage.googleapis.com/codeskulptor-assets/week7-button.m4a',
-        success: 'https://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a'
-    };
-
-    const url = sounds[type];
-    if (url) {
-        const audio = new Audio(url);
-        audio.volume = Math.min(audioSettings.volume, 1.0);
-        audio.play().catch(e => console.log('Audio play failed', e));
-    }
+    // BACKGROUND SOUNDS REMOVED AS REQUESTED
+    return;
   };
 
   const stopAudio = () => {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      setIsPaused(false);
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+    utteranceRef.current = null;
   };
 
   const pauseAudio = () => {
-      window.speechSynthesis.pause();
-      setIsPaused(true);
+    window.speechSynthesis.pause();
+    setIsPaused(true);
   };
 
   const resumeAudio = () => {
-      window.speechSynthesis.resume();
-      setIsPaused(false);
+    window.speechSynthesis.resume();
+    setIsPaused(false);
   };
 
   return (

@@ -4,7 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, BookOpen, Gamepad2, Settings, LogOut, Menu, X, ShieldAlert, 
   GraduationCap, AlertTriangle, FileText, User as UserIcon, Map, Bot, 
-  BookMarked, Volume2, VolumeX, Sliders, DollarSign, Cpu
+  BookMarked, Volume2, VolumeX, Sliders, DollarSign, Cpu, Crown, Zap
 } from 'lucide-react';
 import { Button } from './UI';
 import { authService } from '../services/supabaseMock';
@@ -67,23 +67,25 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     navigate('/login');
   };
 
-  const NavItem = ({ to, icon: Icon, label, badge }: { to: string; icon: any; label: string; badge?: string }) => (
+  const NavItem = ({ to, icon: Icon, label, badge, special }: { to: string; icon: any; label: string; badge?: string; special?: boolean }) => (
     <NavLink 
       to={to} 
       className={({ isActive }) => 
         `flex items-center justify-between px-4 py-3.5 mx-2 rounded-xl transition-all duration-300 font-medium text-sm group relative overflow-hidden ${
           isActive 
             ? 'bg-hanko/5 text-hanko shadow-sm' 
-            : 'text-bamboo hover:bg-bamboo/5 hover:text-ink'
+            : special 
+              ? 'bg-gradient-to-r from-yellow-50 to-orange-50 text-yellow-700 border border-yellow-200 hover:shadow-md'
+              : 'text-bamboo hover:bg-bamboo/5 hover:text-ink'
         }`
       }
       onClick={() => setIsMobileMenuOpen(false)}
     >
       {({ isActive }) => (
         <>
-          {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-hanko rounded-r-full"></div>}
+          {isActive && !special && <div className="absolute left-0 top-0 bottom-0 w-1 bg-hanko rounded-r-full"></div>}
           <div className="flex items-center gap-3 relative z-10">
-            <Icon size={18} className={isActive ? 'text-hanko' : 'text-bamboo/70 group-hover:text-ink transition-colors'} />
+            <Icon size={18} className={isActive ? 'text-hanko' : special ? 'text-yellow-600' : 'text-bamboo/70 group-hover:text-ink transition-colors'} />
             <span className={isActive ? 'font-bold' : ''}>{label}</span>
           </div>
           {badge && <span className="text-[10px] bg-hanko text-white px-2 py-0.5 rounded-full font-bold shadow-sm shadow-hanko/20">{badge}</span>}
@@ -155,11 +157,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                 
                 <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">Learn</div>
                 <NavItem to="/learning" icon={BookOpen} label="Learning Hub" />
+                <NavItem to="/sensei" icon={Bot} label="Sensei Dojo" />
+                <NavItem to="/reading" icon={BookMarked} label="Reading Room" />
                 
                 <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">Tools</div>
                 <NavItem to="/mistakes" icon={AlertTriangle} label="Mistake Review" />
                 <NavItem to="/documents" icon={FileText} label="Archives" />
                 <NavItem to="/profile" icon={Settings} label="Settings" />
+
+                {/* Subscription Link */}
+                {user.subscription !== 'premium' && (
+                    <div className="mt-6 mb-2">
+                        <NavItem to="/subscription" icon={Crown} label="Go Premium" special />
+                    </div>
+                )}
               </>
             )}
           </nav>
@@ -171,7 +182,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
              <div className="flex items-center gap-3 p-3 rounded-xl bg-rice/80 mb-4 border border-bamboo/10 hover:border-bamboo/30 transition-colors cursor-pointer" onClick={() => navigate('/profile')}>
                 <img src={user.avatar} alt="Avatar" className="w-10 h-10 rounded-full bg-rice border-2 border-white shadow-sm object-cover" />
                 <div className="flex-1 min-w-0">
-                   <p className="text-sm font-bold text-ink truncate group-hover:text-hanko transition-colors">{user.username}</p>
+                   <p className="text-sm font-bold text-ink truncate group-hover:text-hanko transition-colors flex items-center gap-1">
+                       {user.username}
+                       {user.subscription === 'premium' && <Crown size={12} className="text-yellow-600 fill-current" />}
+                   </p>
                    <p className="text-[10px] text-bamboo capitalize">{user.role}</p>
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="p-2 text-bamboo hover:text-hanko hover:bg-red-50 rounded-lg transition-colors" title="Logout">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GlassCard, Button, Badge } from '../components/UI';
 import { 
@@ -8,7 +7,7 @@ import {
     Calculator, PenTool, Shuffle, Timer, Heart, Move, Zap, Wand2, RefreshCw, Square, MessageCircle,
     Smartphone, Globe, Wifi, ExternalLink, Frown, ThumbsDown, Play, SortAsc, X, Info, Rocket, Flame,
     Target, MousePointer, Search, LayoutGrid, ListOrdered, Skull, Crosshair, Eye, Music,
-    Ear, Briefcase, Coffee, Pause
+    Ear, Briefcase, Coffee, Pause, Pen, Loader2
 } from 'lucide-react';
 import { 
     VOCAB_DATA, KANA_DATA, KANJI_DATA, GRAMMAR_DATA, 
@@ -68,9 +67,243 @@ const Equalizer: React.FC = () => (
     </div>
 );
 
+// --- KANJI ANIMATED CARD COMPONENT ---
+
+const KanjiCard: React.FC<{ item: LearningItem }> = ({ item }) => {
+    const [isAnimating, setIsAnimating] = useState(false);
+    const [paths, setPaths] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [currentStroke, setCurrentStroke] = useState(-1);
+    const { speak } = useSettings();
+    const timerRef = useRef<number | null>(null);
+
+    const stopAnimation = () => {
+        setIsAnimating(false);
+        setCurrentStroke(-1);
+        if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+
+    const startAnimation = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isAnimating) {
+            stopAnimation();
+            return;
+        }
+
+        setLoading(true);
+        setIsAnimating(true);
+        try {
+            // Convert character to Unicode hex code for KanjiVG
+            const hex = item.ja.charCodeAt(0).toString(16).toLowerCase().padStart(5, '0');
+            const response = await fetch(`https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/${hex}.svg`);
+            if (!response.ok) throw new Error("Character not found in KanjiVG");
+            const text = await response.text();
+            
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "image/svg+xml");
+            const pathElements = Array.from(xmlDoc.querySelectorAll('path'));
+            const dPaths = pathElements.map(p => p.getAttribute('d') || '');
+            setPaths(dPaths);
+            
+            // Start the stroke sequence
+            let step = 0;
+            const play = () => {
+                if (step >= dPaths.length) {
+                    // Loop animation after a delay
+                    timerRef.current = window.setTimeout(() => {
+                        setCurrentStroke(-1);
+                        step = 0;
+                        play();
+                    }, 1500);
+                    return;
+                }
+                setCurrentStroke(step);
+                step++;
+                timerRef.current = window.setTimeout(play, 800); // Wait for path animation to finish
+            };
+            play();
+        } catch (e) {
+            console.error("Stroke data error:", e);
+            setIsAnimating(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
+    }, []);
+
+    return (
+        <GlassCard 
+            className="relative group hover:border-hanko/30 transition-all cursor-pointer overflow-hidden hover:-translate-y-1 h-full flex flex-col"
+            onClick={() => speak(item.ja)}
+        >
+            {/* Stroke Icon Overlay */}
+            <div className="absolute top-3 right-3 flex gap-2 z-20">
+                <button 
+                    onClick={startAnimation}
+                    className={`p-2 rounded-lg transition-all shadow-sm ${isAnimating ? 'bg-hanko text-white' : 'bg-white/80 text-bamboo hover:text-hanko'}`}
+                    title="Play Stroke Order"
+                >
+                    {isAnimating ? <X size={14} /> : <Pen size={14} />}
+                </button>
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center py-6 min-h-[160px]">
+                {isAnimating ? (
+                    <div className="w-24 h-24 relative flex items-center justify-center bg-rice/50 rounded-2xl border border-bamboo/10 shadow-inner">
+                        {loading ? (
+                            <RefreshCw size={24} className="text-hanko animate-spin" />
+                        ) : (
+                            <svg viewBox="0 0 109 109" className="w-full h-full p-2">
+                                {/* Ghost character (faded reference) */}
+                                {paths.map((d, i) => (
+                                    <path key={`g-${i}`} d={d} fill="none" stroke="#e0c097" strokeWidth="3" strokeLinecap="round" opacity="0.1" />
+                                ))}
+                                {/* Active drawing strokes */}
+                                {paths.map((d, i) => (
+                                    <path
+                                        key={`s-${i}`}
+                                        d={d}
+                                        fill="none"
+                                        stroke={i === currentStroke ? '#c93a40' : '#2c2421'}
+                                        strokeWidth="4"
+                                        strokeLinecap="round"
+                                        style={{
+                                            display: i <= currentStroke ? 'block' : 'none',
+                                            strokeDasharray: '1000',
+                                            strokeDashoffset: i === currentStroke ? '1000' : '0',
+                                            animation: i === currentStroke ? 'draw-stroke 0.8s forwards linear' : 'none',
+                                            opacity: i < currentStroke ? 0.6 : 1
+                                        }}
+                                    />
+                                ))}
+                            </svg>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="text-7xl font-jp font-bold text-ink mb-2 drop-shadow-sm transition-transform group-hover:scale-110">{item.ja}</div>
+                        <div className="text-xs font-bold text-hanko uppercase tracking-widest bg-hanko/5 px-2 py-0.5 rounded-full">{item.romaji}</div>
+                    </>
+                )}
+            </div>
+
+            <div className="pt-3 border-t border-bamboo/10 mt-auto text-center pb-1">
+                <p className="text-sm font-bold text-ink/80">{item.en}</p>
+                {item.bn && <p className="text-[10px] text-bamboo mt-1 font-medium italic">🇧🇩 {item.bn}</p>}
+            </div>
+
+            <style>{`
+                @keyframes draw-stroke {
+                    from { stroke-dashoffset: 1000; }
+                    to { stroke-dashoffset: 0; }
+                }
+            `}</style>
+        </GlassCard>
+    );
+};
+
+// --- VOCAB PRACTICE CARD COMPONENT ---
+
+const VocabPracticeCard: React.FC<{ item: LearningItem }> = ({ item }) => {
+    const [isPracticing, setIsPracticing] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [sentences, setSentences] = useState<{ja: string, ro: string, en: string}[]>([]);
+    const { speak } = useSettings();
+
+    const startPractice = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsPracticing(true);
+        setLoading(true);
+        try {
+            const data = await aiService.generateSentences(item.ja);
+            setSentences(data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const stopPractice = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsPracticing(false);
+        setSentences([]);
+    };
+
+    return (
+        <GlassCard 
+            key={item.id} 
+            className={`relative group border-white transition-all duration-300 cursor-pointer overflow-hidden transform active:scale-95 ${isPracticing ? 'col-span-full md:col-span-1 lg:col-span-2 min-h-[300px]' : 'hover:-translate-y-1.5 shadow-sm hover:shadow-xl'}`}
+            onClick={(e) => !isPracticing ? startPractice(e) : speak(item.ja)}
+        >
+            {isPracticing ? (
+                <div className="flex flex-col h-full animate-fade-in">
+                    <div className="flex justify-between items-center mb-6 border-b border-bamboo/10 pb-4">
+                        <div className="flex items-center gap-3">
+                            <span className="text-3xl font-jp font-bold text-hanko">{item.ja}</span>
+                            <Badge color="bg-hanko/10 text-hanko border-hanko/20">Practice Mode</Badge>
+                        </div>
+                        <button 
+                            onClick={stopPractice}
+                            className="p-2 bg-rice hover:bg-white text-bamboo hover:text-hanko rounded-full border border-bamboo/10 transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {loading ? (
+                        <div className="flex-1 flex flex-col items-center justify-center py-10">
+                            <Loader2 className="animate-spin text-hanko mb-4" size={48} />
+                            <p className="text-bamboo font-medium">Creating 5 easy sentences for you...</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            {sentences.map((s, i) => (
+                                <div key={i} className="p-4 bg-white/60 rounded-2xl border border-bamboo/10 hover:border-hanko/20 transition-colors group/sentence">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                            <p className="text-xl font-jp font-bold text-ink mb-1">{s.ja}</p>
+                                            <p className="text-xs text-hanko font-medium mb-1">{s.ro}</p>
+                                            <p className="text-sm text-bamboo italic">{s.en}</p>
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); speak(s.ja); }}
+                                            className="p-2 text-bamboo hover:text-hanko opacity-0 group-hover/sentence:opacity-100 transition-opacity"
+                                        >
+                                            <Volume2 size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <>
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all pointer-events-none bg-hanko/10 text-hanko px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest">Practice sentences</div>
+                    <div className="pt-2">
+                        <div className="text-4xl font-jp font-bold text-ink mb-2 relative z-10">{item.ja}</div>
+                        <div className="font-mono text-lg mb-3 relative z-10 text-bamboo/60 uppercase tracking-widest">{item.romaji}</div>
+                    </div>
+                    
+                    <div className="pt-4 border-t border-bamboo/5 relative z-10">
+                        <p className="text-ink/80 font-medium leading-tight">{item.en}</p>
+                        {item.bn && <p className="text-xs text-bamboo mt-2 italic font-serif">🇧🇩 {item.bn}</p>}
+                        {item.usage && <p className="text-[11px] text-bamboo mt-3 bg-rice/50 p-2.5 rounded-lg border border-bamboo/5 leading-relaxed">Ex: <span className="text-ink/70 font-jp">{item.usage}</span></p>}
+                    </div>
+                    
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-hanko/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                </>
+            )}
+        </GlassCard>
+    );
+};
+
 // --- GAME COMPONENTS ---
 
-// 1. Kana Memory Match (Reusable for other sections)
 const MemoryMatchGame: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
     const { playSound } = useSettings();
     const [cards, setCards] = useState<any[]>([]);
@@ -79,8 +312,7 @@ const MemoryMatchGame: React.FC<{ items: LearningItem[]; onExit: () => void }> =
     const [moves, setMoves] = useState(0);
 
     useEffect(() => {
-        const safeItems = items.length < 6 ? [...items, ...items] : items;
-        const selection = safeItems.sort(() => 0.5 - Math.random()).slice(0, 6);
+        const selection = items.sort(() => 0.5 - Math.random()).slice(0, 6);
         const deck = [...selection.map(k => ({ ...k, display: k.ja, matchId: k.id })), 
                       ...selection.map(k => ({ ...k, display: k.romaji, matchId: k.id }))]
                       .sort(() => 0.5 - Math.random());
@@ -107,9 +339,7 @@ const MemoryMatchGame: React.FC<{ items: LearningItem[]; onExit: () => void }> =
         }
     };
 
-    const isGameOver = matched.length === cards.length && cards.length > 0;
-
-    if (isGameOver) {
+    if (matched.length === cards.length && cards.length > 0) {
         return (
             <div className="text-center py-10 animate-pop">
                 <Trophy size={64} className="mx-auto text-straw mb-6 animate-bounce" />
@@ -145,7 +375,6 @@ const MemoryMatchGame: React.FC<{ items: LearningItem[]; onExit: () => void }> =
     );
 };
 
-// 3. Typing Master (Enhanced)
 const TypingMasterGame: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
     const { playSound } = useSettings();
     const [gameState, setGameState] = useState<'menu' | 'playing' | 'gameover'>('menu');
@@ -275,7 +504,7 @@ const TypingMasterGame: React.FC<{ items: LearningItem[]; onExit: () => void }> 
                 <div className="flex flex-col items-start"><span className="text-xs text-bamboo font-bold uppercase tracking-widest">Score</span><span className="text-2xl font-mono font-bold text-ink">{score}</span></div>
                 <div className="flex gap-1">{[...Array(3)].map((_, i) => (<Heart key={i} size={24} className={`${i < lives ? 'text-hanko fill-hanko' : 'text-bamboo/20 fill-bamboo/20'} transition-colors`} />))}</div>
             </div>
-            <div className="w-full h-2 bg-bamboo/10 rounded-full mb-8 overflow-hidden"><div className={`h-full transition-all duration-100 ease-linear ${timeLeft < 30 ? 'bg-hanko' : timeLeft < 60 ? 'bg-straw' : 'bg-green-500'}`} style={{ width: `${timeLeft}%` }}></div></div>
+            <div className="w-full h-2 bg-bamboo/10 rounded-full mb-8 overflow-hidden"><div className={`h-full transition-all duration-100 ease-linear ${timeLeft < 30 ? 'bg-hanko' : timeLeft < 60 ? 'bg-straw' : 'bg-green-50'}`} style={{ width: `${timeLeft}%` }}></div></div>
             {current && (
                 <div className="relative mb-8">
                     {feedback && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-12 text-3xl font-bold text-straw animate-float-slow opacity-0 z-20" style={{ animation: 'pop 0.5s forwards' }}>{feedback}</div>}
@@ -290,28 +519,10 @@ const TypingMasterGame: React.FC<{ items: LearningItem[]; onExit: () => void }> 
     );
 };
 
-// --- SUB-COMPONENTS FOR GAMES ---
-
-const DifficultySelector: React.FC<{ current: Difficulty; onChange: (d: Difficulty) => void }> = ({ current, onChange }) => (
-    <div className="flex bg-white/40 p-1.5 rounded-xl gap-2 mb-8 max-w-sm mx-auto border border-bamboo/20 shadow-inner">
-        {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
-            <button
-                key={d}
-                onClick={() => onChange(d)}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-sm ${
-                    current === d 
-                    ? d === 'easy' ? 'bg-green-600 text-white shadow-green-200' : d === 'medium' ? 'bg-straw text-white shadow-yellow-200' : 'bg-hanko text-white shadow-red-200'
-                    : 'text-bamboo hover:bg-white/60 bg-transparent shadow-none'
-                }`}
-            >
-                {d}
-            </button>
-        ))}
-    </div>
-);
+// ... (LessonStoryView, LessonSongView, ListeningDrillView, FlashcardView remain same)
 
 const LessonStoryView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
-    const { speak, isPaused, pauseAudio, resumeAudio, stopAudio } = useSettings();
+    const { speak, isSpeaking, isPaused, pauseAudio, resumeAudio, stopAudio } = useSettings();
     const [story, setStory] = useState<StoryContent | null>(null);
     const [loading, setLoading] = useState(false);
     const [showTranslation, setShowTranslation] = useState<'none' | 'en' | 'bn'>('none');
@@ -479,7 +690,11 @@ const LessonSongView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
         setIsPlaying(false);
         isPlayingRef.current = false;
         setCurrentLineIndex(-1);
+        
+        // Stop Speech
         stopAudio();
+        
+        // Stop Music
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
@@ -501,9 +716,11 @@ const LessonSongView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
         setIsPlaying(true);
         isPlayingRef.current = true;
 
+        // 1. Initialize & Start Music (Instrumental Track)
         if (!audioRef.current) {
+            // Using a royalty-free upbeat instrumental track for the "Song" feel
             audioRef.current = new Audio('https://commondatastorage.googleapis.com/codeskulptor-demos/riceracer_assets/music/race1.ogg'); 
-            audioRef.current.volume = 0.2; 
+            audioRef.current.volume = 0.2; // Keep background music lower than voice
             audioRef.current.loop = true;
         }
 
@@ -513,17 +730,22 @@ const LessonSongView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
             console.warn("Audio play blocked (needs interaction)", e);
         }
         
+        // 2. Iterate Lyrics with proper synchronization
         for (let i = 0; i < song.lyrics.length; i++) {
-            if (!isPlayingRef.current) break; 
+            if (!isPlayingRef.current) break; // Check cancel flag
             
             setCurrentLineIndex(i);
             const line = song.lyrics[i];
             
+            // Speak the line - wait for it to finish
+            // The speech system now supports pausing natively via context
             await speak(line.kana);
             
+            // Brief pause between lines
             await new Promise(r => setTimeout(r, 600));
         }
 
+        // 3. Finish
         stopSong();
     };
 
@@ -854,7 +1076,6 @@ interface QuizProps {
 }
 
 const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal', onComplete }) => {
-    // ... (Keeping exact same implementation as before)
     const { playSound } = useSettings();
     const [currentQIndex, setCurrentQIndex] = useState(0);
     const [score, setScore] = useState(0);
@@ -1009,7 +1230,8 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
     );
 };
 
-// --- MISSING COMPONENTS STUBS ---
+// ... (Rest of missing components stubs remain same)
+
 const SentenceBuilderView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = () => <div className="p-8 text-center text-bamboo">Sentence Builder Game - Coming Soon!</div>;
 const MathChallengeView: React.FC<{ difficulty: Difficulty }> = () => <div className="p-8 text-center text-bamboo">Math Challenge - Coming Soon!</div>;
 const MatrixSearchView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = () => <div className="p-8 text-center text-bamboo">Matrix Search - Coming Soon!</div>;
@@ -1113,7 +1335,7 @@ export const LearningHub: React.FC = () => {
     };
 
     const getContent = () => {
-        let items = [];
+        let items: LearningItem[] = [];
         switch(activeSection) {
             case 'kana':
                 if (kanaSystem === 'Mixed') items = KANA_DATA.filter(k => k.variation === kanaVar);
@@ -1231,7 +1453,6 @@ export const LearningHub: React.FC = () => {
 
     // --- MAIN MENU RENDER ---
     if (!activeSection) {
-        // ... (Same as before)
         const menus = [
             { id: 'kana', title: 'Hiragana & Katakana', desc: 'The foundation of Japanese writing.', icon: Languages, color: 'text-hanko', bg: 'bg-hanko/10', border: 'border-hanko/20' },
             { id: 'listening', title: 'Listening Practice', desc: 'Train your ears with native audio.', icon: Ear, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-200' },
@@ -1337,10 +1558,6 @@ export const LearningHub: React.FC = () => {
               )}
           </div>
   
-          {viewMode !== 'list' && viewMode !== 'flashcard' && viewMode !== 'story' && viewMode !== 'song' && viewMode !== 'games' && activeSection !== 'listening' && (
-              <DifficultySelector current={difficulty} onChange={setDifficulty} />
-          )}
-  
           <GlassCard className="py-6 border-t-4 border-t-bamboo/20">
               {/* Filters UI */}
               {activeSection === 'kana' && viewMode !== 'games' && (
@@ -1379,45 +1596,67 @@ export const LearningHub: React.FC = () => {
                   </div>
               )}
               
-              {/* Sorting Controls for List View */}
+              {/* Sorting & Action Controls */}
               {viewMode === 'list' && activeSection !== 'formal_informal' && (
-                  <div className="mt-6 pt-4 border-t border-bamboo/10 flex flex-wrap gap-3 items-center">
-                      <span className="text-xs font-bold uppercase text-bamboo/60 mr-2 tracking-widest">Sort By</span>
-                      <Button size="sm" variant={sortMethod === 'az' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'az' ? 'default' : 'az')}>
-                          <SortAsc size={14} /> A-Z
-                      </Button>
-                      <Button size="sm" variant={sortMethod === 'length' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'length' ? 'default' : 'length')}>
-                          <Scale size={14} /> Shortest
-                      </Button>
-                      <Button size="sm" variant={sortMethod === 'random' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'random' ? 'default' : 'random')}>
-                          <Shuffle size={14} /> Random
-                      </Button>
-                      <Button size="sm" variant={sortMethod === 'serial' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'serial' ? 'default' : 'serial')}>
-                          <ListOrdered size={14} /> Serial
-                      </Button>
+                  <div className="mt-6 pt-4 border-t border-bamboo/10 flex flex-wrap gap-4 items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase text-bamboo/60 tracking-widest mr-2">Sort</span>
+                        <div className="flex gap-1.5 p-1 bg-white/40 border border-bamboo/10 rounded-xl">
+                            <button 
+                                onClick={() => setSortMethod(sortMethod === 'az' ? 'default' : 'az')}
+                                className={`p-2 rounded-lg transition-all ${sortMethod === 'az' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white'}`}
+                                title="Sort A-Z"
+                            >
+                                <SortAsc size={16} />
+                            </button>
+                            <button 
+                                onClick={() => setSortMethod(sortMethod === 'length' ? 'default' : 'length')}
+                                className={`p-2 rounded-lg transition-all ${sortMethod === 'length' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white'}`}
+                                title="Sort by Length"
+                            >
+                                <Scale size={16} />
+                            </button>
+                            <button 
+                                onClick={() => setSortMethod(sortMethod === 'random' ? 'default' : 'random')}
+                                className={`p-2 rounded-lg transition-all ${sortMethod === 'random' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white'}`}
+                                title="Randomize"
+                            >
+                                <Shuffle size={16} />
+                            </button>
+                            <button 
+                                onClick={() => setSortMethod(sortMethod === 'serial' ? 'default' : 'serial')}
+                                className={`p-2 rounded-lg transition-all ${sortMethod === 'serial' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white'}`}
+                                title="Serial Order"
+                            >
+                                <ListOrdered size={16} />
+                            </button>
+                        </div>
+                      </div>
                       
-                      <div className="h-6 w-px bg-bamboo/20 mx-2"></div>
+                      <div className="h-8 w-px bg-bamboo/20 hidden md:block"></div>
                       
-                      {isPlayingAll ? (
-                          <>
-                              {isPaused ? (
-                                  <Button size="sm" onClick={resumeAudio} className="bg-green-600 hover:bg-green-700 text-white shadow-green-200">
-                                      <Play size={14} fill="currentColor" /> Resume
-                                  </Button>
-                              ) : (
-                                  <Button size="sm" variant="secondary" onClick={pauseAudio}>
-                                      <Pause size={14} fill="currentColor" /> Pause
-                                  </Button>
-                              )}
-                              <Button size="sm" variant="danger" onClick={() => { stopAudio(); setIsPlayingAll(false); }}>
-                                  <Square size={14} fill="currentColor" /> Stop
-                              </Button>
-                          </>
-                      ) : (
-                          <Button size="sm" variant="secondary" onClick={handlePlayAll}>
-                              <Volume2 size={14} /> Listen All
-                          </Button>
-                      )}
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold uppercase text-bamboo/60 tracking-widest mr-1">Playback</span>
+                        {isPlayingAll ? (
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="secondary" onClick={() => { pauseAudio(); }}>
+                                    <Pause size={14} fill="currentColor" /> Pause
+                                </Button>
+                                <Button size="sm" variant="danger" onClick={() => { stopAudio(); setIsPlayingAll(false); }}>
+                                    <Square size={14} fill="currentColor" /> Stop
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button 
+                                size="sm" 
+                                variant="secondary" 
+                                onClick={() => { handlePlayAll(); }}
+                                className="group hover:bg-hanko hover:text-white transition-all shadow-sm"
+                            >
+                                <Volume2 size={16} className="group-hover:animate-pulse" /> Listen All Sequence
+                            </Button>
+                        )}
+                      </div>
                   </div>
               )}
               
@@ -1464,45 +1703,82 @@ export const LearningHub: React.FC = () => {
           {viewMode === 'listening_drill' && <ListeningDrillView items={currentContent} />}
   
           {viewMode === 'list' && (
-              <div className={`grid gap-4 ${activeSection === 'kana' ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+              <div className={`grid gap-5 ${activeSection === 'kana' ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                   {currentContent.map((item) => (
-                      <GlassCard key={item.id} className="relative group hover:border-hanko/30 transition-all cursor-pointer overflow-hidden hover:-translate-y-1" onClick={() => speak(item.ja)}>
-                          
-                          {/* Pronunciation Guide Overlay for Kana */}
-                          {activeSection === 'kana' && (
-                              <div className="absolute inset-0 bg-ink/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 backdrop-blur-[2px]">
-                                  <Volume2 className="text-straw mb-2 animate-bounce" size={24} />
-                                  <p className="text-white font-bold text-lg capitalize">{item.romaji}</p>
-                                  <p className="text-[10px] text-bamboo uppercase tracking-widest mt-1">Pronunciation</p>
-                              </div>
-                          )}
-  
-                          {activeSection === 'formal_informal' ? (
-                              <div className="flex gap-4">
-                                  <div className="flex-1 border-r border-bamboo/10 pr-4">
-                                      <div className="text-xs text-hanko uppercase font-bold mb-1"><Briefcase size={10} className="inline mr-1"/> Polite</div>
-                                      <div className="text-xl font-jp font-bold text-ink">{item.ja}</div>
+                      activeSection === 'kanji' ? (
+                          <KanjiCard key={item.id} item={item} />
+                      ) : activeSection === 'vocab' ? (
+                          <VocabPracticeCard key={item.id} item={item} />
+                      ) : (
+                          <GlassCard 
+                            key={item.id} 
+                            className={`relative group border-white transition-all duration-300 cursor-pointer overflow-hidden transform active:scale-95 ${activeSection === 'kana' ? 'aspect-square flex flex-col items-center justify-center p-0' : 'hover:-translate-y-1.5 shadow-sm hover:shadow-xl'}`}
+                            onClick={() => { speak(item.ja); }}
+                          >
+                              
+                              {/* Pronunciation Guide */}
+                              {activeSection === 'kana' && (
+                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                      <div className="bg-hanko text-white p-1 rounded-lg shadow-sm">
+                                          <Volume2 size={12} />
+                                      </div>
                                   </div>
-                                  <div className="flex-1 pl-1">
-                                      <div className="text-xs text-bamboo uppercase font-bold mb-1"><Coffee size={10} className="inline mr-1"/> Casual</div>
-                                      <div className="text-xl font-jp font-bold text-ink/80">{item.romaji}</div>
+                              )}
+      
+                              {activeSection !== 'kana' && <div className="absolute top-4 right-4 text-[10px] text-bamboo/40 uppercase tracking-widest font-black border border-bamboo/10 px-1.5 py-0.5 rounded pointer-events-none">{item.type.replace('_', ' ')}</div>}
+                              
+                              {activeSection === 'formal_informal' ? (
+                                  <div className="flex gap-4">
+                                      <div className="flex-1 border-r border-bamboo/10 pr-4">
+                                          <div className="text-xs text-hanko uppercase font-bold mb-1"><Briefcase size={10} className="inline mr-1"/> Polite</div>
+                                          <div className="text-xl font-jp font-bold text-ink">{item.ja}</div>
+                                      </div>
+                                      <div className="flex-1 pl-1">
+                                          <div className="text-xs text-bamboo uppercase font-bold mb-1"><Coffee size={10} className="inline mr-1"/> Casual</div>
+                                          <div className="text-xl font-jp font-bold text-ink/80">{item.romaji}</div>
+                                      </div>
                                   </div>
-                              </div>
-                          ) : (
-                              <>
-                                  <div className="text-3xl font-jp font-bold text-ink mb-2 relative z-10">{item.ja}</div>
-                                  <div className={`font-medium mb-3 relative z-10 ${activeSection === 'synonym' || activeSection === 'antonym' ? 'text-xl text-straw font-jp' : 'text-hanko'}`}>{item.romaji}</div>
-                              </>
-                          )}
-                          
-                          <div className="pt-3 border-t border-bamboo/10 relative z-10">
-                              <p className="text-ink/80">{item.en}</p>
-                              {item.bn && <p className="text-xs text-bamboo mt-1">🇧🇩 {item.bn}</p>}
-                              {item.usage && <p className="text-xs text-bamboo mt-2 bg-bamboo/5 p-2 rounded italic">Ex: {item.usage}</p>}
-                          </div>
-                      </GlassCard>
+                              ) : activeSection === 'kana' && kanaSystem === 'Mixed' ? (
+                                  <div className="flex flex-col items-center justify-center relative z-10">
+                                      <div className="flex items-center justify-center gap-6 transition-transform duration-300 group-hover:scale-110">
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-[10px] font-bold text-bamboo uppercase tracking-tighter mb-1 opacity-60">Hiragana</span>
+                                            <span className="text-5xl font-jp font-bold text-ink drop-shadow-sm" title="Hiragana">{item.ja.split('　')[0]}</span>
+                                        </div>
+                                        <div className="w-px h-12 bg-bamboo/20"></div>
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-[10px] font-bold text-hanko uppercase tracking-tighter mb-1 opacity-60">Katakana</span>
+                                            <span className="text-5xl font-jp font-bold text-ink drop-shadow-sm" title="Katakana">{item.ja.split('　')[1]}</span>
+                                        </div>
+                                      </div>
+                                      <div className="mt-4 font-mono text-sm font-bold text-bamboo/40 uppercase tracking-widest">{item.romaji}</div>
+                                  </div>
+                              ) : activeSection === 'kana' ? (
+                                  <div className="relative z-10 flex flex-col items-center">
+                                      <div className="text-6xl font-jp font-bold text-ink transition-transform duration-300 group-hover:scale-110 group-hover:text-hanko">{item.ja}</div>
+                                      <div className="mt-2 font-mono text-sm font-bold text-bamboo/40 group-hover:text-bamboo/70 uppercase tracking-widest">{item.romaji}</div>
+                                  </div>
+                              ) : (
+                                  <div className="pt-2">
+                                      <div className="text-4xl font-jp font-bold text-ink mb-2 relative z-10">{item.ja}</div>
+                                      <div className={`font-mono text-lg mb-3 relative z-10 uppercase tracking-widest ${activeSection === 'synonym' || activeSection === 'antonym' ? 'text-xl text-straw font-jp' : 'text-bamboo/60'}`}>{item.romaji}</div>
+                                  </div>
+                              )}
+                              
+                              {activeSection !== 'kana' && (
+                                  <div className="pt-4 border-t border-bamboo/5 relative z-10">
+                                      <p className="text-ink/80 font-medium leading-tight">{item.en}</p>
+                                      {item.bn && <p className="text-xs text-bamboo mt-2 italic font-serif">🇧🇩 {item.bn}</p>}
+                                      {item.usage && <p className="text-[11px] text-bamboo mt-3 bg-rice/50 p-2.5 rounded-lg border border-bamboo/5 leading-relaxed">Ex: <span className="text-ink/70 font-jp">{item.usage}</span></p>}
+                                  </div>
+                              )}
+    
+                              {/* Hover Sheen */}
+                              <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-hanko/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                          </GlassCard>
+                      )
                   ))}
-                  {currentContent.length === 0 && <div className="col-span-full text-center py-12 text-bamboo">No content found for this selection.</div>}
+                  {currentContent.length === 0 && <div className="col-span-full text-center py-20 text-bamboo bg-white/40 border-2 border-dashed border-bamboo/10 rounded-3xl">No content found for this selection.</div>}
               </div>
           )}
   

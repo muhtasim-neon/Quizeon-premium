@@ -1,12 +1,8 @@
-
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { StoryContent, LearningItem, SongContent } from "../types";
 
-// In a real environment, this comes from process.env.API_KEY
-// We wrap this to prevent crashing if key is missing in demo
-const apiKey = process.env.API_KEY || 'DEMO_KEY'; 
-
-const ai = new GoogleGenAI({ apiKey });
+// Always use process.env.API_KEY directly for initialization
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const aiService = {
   /**
@@ -14,10 +10,9 @@ export const aiService = {
    */
   chatWithSensei: async (message: string, history: any[]) => {
     try {
-      if (apiKey === 'DEMO_KEY') throw new Error("No API Key");
-
+      // Use gemini-3-flash-preview for conversational text tasks
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: [
             ...history.map(h => ({ role: h.role, parts: [{ text: h.text || "" }] })),
             { role: 'user', parts: [{ text: message }] }
@@ -26,12 +21,55 @@ export const aiService = {
           systemInstruction: "You are Quizeon Sensei, a helpful and encouraging Japanese language tutor for JLPT N5 students. Keep answers concise, explain grammar simply, and use emojis. If the user makes a mistake, gently correct them.",
         }
       });
+      // Correct property access: response.text (not a method)
       return response.text || "";
     } catch (error) {
-      console.warn("AI Service unavailable (Demo Mode):", error);
-      // Fallback response for demo
+      console.warn("AI Service error:", error);
       await new Promise(r => setTimeout(r, 1000));
-      return "Konnichiwa! I am in Demo Mode because the API Key is missing. But imagine I just gave you a brilliant explanation of 'Wa' vs 'Ga' particles! 🌸";
+      return "Konnichiwa! I encountered a small ripple in the digital pond. Let's try again in a moment! 🌸";
+    }
+  },
+
+  /**
+   * Generate 5 easy practice sentences for a specific word
+   */
+  generateSentences: async (word: string): Promise<{ja: string, ro: string, en: string}[]> => {
+    try {
+      const prompt = `Create exactly 5 very easy, JLPT N5 level sentences using the Japanese word "${word}". 
+      Each sentence must include the word. 
+      Return JSON as an array of objects with "ja" (Japanese), "ro" (Romaji), and "en" (English) keys.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: { 
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                ja: { type: Type.STRING },
+                ro: { type: Type.STRING },
+                en: { type: Type.STRING },
+              },
+              required: ["ja", "ro", "en"]
+            }
+          }
+        }
+      });
+      
+      const text = response.text || "[]";
+      return JSON.parse(text);
+    } catch (error) {
+      console.warn("Sentence generation error:", error);
+      return [
+        { ja: `${word}は好きです。`, ro: `${word} wa suki desu.`, en: `I like ${word}.` },
+        { ja: `${word}があります。`, ro: `${word} ga arimasu.`, en: `There is ${word}.` },
+        { ja: `${word}を食べます。`, ro: `${word} o tabemasu.`, en: `I eat ${word}.` },
+        { ja: `${word}はきれいです。`, ro: `${word} wa kirei desu.`, en: `${word} is beautiful.` },
+        { ja: `${word}を見ます。`, ro: `${word} o mimasu.`, en: `I look at ${word}.` }
+      ];
     }
   },
 
@@ -40,8 +78,6 @@ export const aiService = {
    */
   generateStory: async (topicOrVocab: string | LearningItem[]): Promise<StoryContent> => {
     try {
-      if (apiKey === 'DEMO_KEY') throw new Error("No API Key");
-
       let prompt = "";
       
       if (typeof topicOrVocab === 'string') {
@@ -63,7 +99,7 @@ export const aiService = {
       }`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
@@ -72,7 +108,7 @@ export const aiService = {
       return JSON.parse(text);
 
     } catch (error) {
-      console.warn("AI Service unavailable (Demo Mode)");
+      console.warn("AI Service error");
       await new Promise(r => setTimeout(r, 1500));
       return {
         title: "喫茶店で (At the Cafe)",
@@ -97,9 +133,6 @@ export const aiService = {
    */
   generateSong: async (items: LearningItem[]): Promise<SongContent> => {
     try {
-      if (apiKey === 'DEMO_KEY') throw new Error("No API Key");
-
-      // Increased limit to 40 to include most words in a typical lesson
       const words = items.slice(0, 40).map(v => `${v.ja} (${v.en})`).join(', ');
       
       const prompt = `
@@ -126,7 +159,7 @@ export const aiService = {
       }`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
@@ -135,7 +168,7 @@ export const aiService = {
       return JSON.parse(text);
 
     } catch (error) {
-        console.warn("AI Service unavailable (Demo Mode)");
+        console.warn("AI Service error");
         await new Promise(r => setTimeout(r, 1500));
         return {
             title: "がっこう の うた",
@@ -145,7 +178,7 @@ export const aiService = {
                 { kana: "せんせい おはよう ございます", romaji: "Sensei ohayou gozaimasu", en: "Teacher, good morning", bn: "শিক্ষক, শুভ সকাল" },
                 { kana: "ほん を よみます", romaji: "Hon o yomimasu", en: "I read a book", bn: "আমি বই পড়ি" },
                 { kana: "がっこう へ いきます", romaji: "Gakkou e ikimasu", en: "I go to school", bn: "আমি স্কুলে যাই" },
-                { kana: "べんきょう は たのしい です", romaji: "Benkyou wa tanoshii desu", en: "Studying is fun", bn: "পড়াশোনা করা মজার" }
+                { kana: "べんきょう は tanoshii です", romaji: "Benkyou wa tanoshii desu", en: "Studying is fun", bn: "পড়াশোনা করা মজার" }
             ]
         };
     }

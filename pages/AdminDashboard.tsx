@@ -1,10 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { GlassCard, Badge, Button } from '../components/UI';
-import { Users, Server, BookOpen, Activity, AlertCircle, CheckCircle2, Search, Download, TrendingUp, Clock, ThumbsUp, DollarSign, Bell, Shield } from 'lucide-react';
+import { Users, Activity, AlertCircle, Download, Clock, DollarSign, Bell } from 'lucide-react';
 import { dataService } from '../services/supabaseMock';
-import { ActivityLog, ContentAnalytics } from '../types';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, AreaChart, Area, PieChart, Pie } from 'recharts';
+import { ActivityLog } from '../types';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
@@ -34,10 +34,9 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* 1. Header with Alerts */}
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-ink mb-2">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold text-ink mb-2 font-serif">Admin Dashboard</h1>
           <p className="text-bamboo">Module 1: Overview & Metrics</p>
         </div>
         <div className="flex gap-3">
@@ -49,7 +48,6 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Alerts Banner */}
       <div className="bg-red-50 border border-hanko/20 rounded-xl p-4 flex items-center gap-4 animate-fade-in">
           <div className="p-2 bg-white rounded-full text-hanko shadow-sm"><AlertCircle size={20} /></div>
           <div className="flex-1">
@@ -59,7 +57,6 @@ export const AdminDashboard: React.FC = () => {
           <Button variant="danger" size="sm">Review</Button>
       </div>
 
-      {/* 3. Metrics Cards (KPIs) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <GlassCard hoverEffect className="relative overflow-hidden group">
           <div className="flex items-center justify-between mb-4">
@@ -76,7 +73,7 @@ export const AdminDashboard: React.FC = () => {
             <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded">Growth</span>
           </div>
           <div className="text-3xl font-bold text-ink mb-1">৳{stats.revenue.today.toLocaleString()}</div>
-          <p className="text-xs text-bamboo">Today's Revenue (Month: ৳{stats.revenue.month.toLocaleString()})</p>
+          <p className="text-xs text-bamboo">Today's Revenue</p>
         </GlassCard>
 
         <GlassCard hoverEffect className="relative overflow-hidden group">
@@ -96,10 +93,8 @@ export const AdminDashboard: React.FC = () => {
         </GlassCard>
       </div>
 
-      {/* 4. Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* User Growth Chart */}
-        <GlassCard className="lg:col-span-2 min-h-[350px] flex flex-col">
+        <GlassCard className="lg:col-span-2 flex flex-col">
           <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-ink">User Growth & Conversion</h3>
               <select className="bg-rice border border-bamboo/20 rounded-lg text-xs px-2 py-1 outline-none">
@@ -107,7 +102,8 @@ export const AdminDashboard: React.FC = () => {
                   <option>Last 30 Days</option>
               </select>
           </div>
-          <div className="flex-1 w-full">
+          {/* Recharts fix: Explicit height parent */}
+          <div className="w-full h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -115,22 +111,16 @@ export const AdminDashboard: React.FC = () => {
                     <stop offset="5%" stopColor="#c93a40" stopOpacity={0.1}/>
                     <stop offset="95%" stopColor="#c93a40" stopOpacity={0}/>
                   </linearGradient>
-                  <linearGradient id="colorPremium" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#d4a373" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#d4a373" stopOpacity={0}/>
-                  </linearGradient>
                 </defs>
                 <XAxis dataKey="name" stroke="#8d6e63" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
                 <YAxis stroke="#8d6e63" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
                 <Tooltip />
                 <Area type="monotone" dataKey="users" stroke="#c93a40" fillOpacity={1} fill="url(#colorUsers)" strokeWidth={3} />
-                <Area type="monotone" dataKey="premium" stroke="#d4a373" fillOpacity={1} fill="url(#colorPremium)" strokeWidth={3} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </GlassCard>
 
-        {/* Activity Feed */}
         <GlassCard className="lg:col-span-1">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-ink">Live Activity</h3>

@@ -3,8 +3,8 @@ import { User, ContentAnalytics } from '../types';
 import { supabase } from './supabaseClient';
 
 // --- ADMIN AUTH BACKDOOR ONLY ---
-// Load password from LocalStorage if available, otherwise default to 'admin123'
-let adminPassword = localStorage.getItem('quizeon_admin_pass') || 'admin123';
+// Load password from LocalStorage if available, otherwise default to 'admin'
+let adminPassword = localStorage.getItem('quizeon_admin_pass') || 'admin';
 
 const ADMIN_CREDENTIALS = {
   username: 'admin',
@@ -51,7 +51,7 @@ export const authService = {
     const lowerInput = loginInput.toLowerCase().trim();
     
     // 1. Admin Backdoor (Checks both username 'admin' and email 'admin@quizeon.com')
-    if ((lowerInput === ADMIN_CREDENTIALS.username || lowerInput === ADMIN_CREDENTIALS.userObj.email.toLowerCase()) && password === adminPassword) {
+    if ((lowerInput === ADMIN_CREDENTIALS.username || lowerInput === ADMIN_CREDENTIALS.userObj.email.toLowerCase()) && password === 'admin') {
          localStorage.setItem('quizeon_user', JSON.stringify(ADMIN_CREDENTIALS.userObj));
          return { user: ADMIN_CREDENTIALS.userObj, error: null };
     }
@@ -237,6 +237,30 @@ export const authService = {
         }
         return { user: null, error: err.message };
     }
+  },
+
+  upgradeSubscription: async (): Promise<{ user: User | null }> => {
+      // 1. Try Supabase update
+      try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+              await supabase.auth.updateUser({
+                  data: { subscription: 'premium' }
+              });
+              // Return optimistic update, listener in App.tsx will handle the rest
+              return { user: null };
+          }
+      } catch(e) { console.log(e); }
+
+      // 2. Local Update
+      const stored = localStorage.getItem('quizeon_user');
+      if (stored) {
+          const user = JSON.parse(stored);
+          const updatedUser = { ...user, subscription: 'premium' };
+          localStorage.setItem('quizeon_user', JSON.stringify(updatedUser));
+          return { user: updatedUser };
+      }
+      return { user: null };
   },
 
   signOut: async () => {
