@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -14,13 +15,17 @@ export const GlassCard: React.FC<GlassCardProps> = ({ className, children, hover
   return (
     <div 
       className={cn(
-        "shoji-card rounded-2xl p-6 transition-all duration-300 ease-out text-ink border border-white/60 relative", 
-        // Add a subtle paper grain texture via pseudo-element if desired, or keep it clean
-        hoverEffect && "hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(62,39,35,0.15)] cursor-pointer hover:border-bamboo/30 active:scale-[0.99]",
+        "glass-effect rounded-2xl p-6 transition-all duration-500 ease-out text-ink relative overflow-hidden border border-white/40", 
+        // 3D Hover Effect - Enhanced Shadow and Lift
+        hoverEffect && "hover:-translate-y-2 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)] hover:shadow-hanko/5 cursor-pointer hover:border-white/80 active:scale-[0.98] active:shadow-sm",
         className
       )} 
       {...props}
     >
+      {/* Glossy sheen effect on hover */}
+      {hoverEffect && (
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 hover:opacity-100 transition-opacity duration-700 pointer-events-none" style={{ backgroundSize: '200% 200%' }} />
+      )}
       {children}
     </div>
   );
@@ -33,32 +38,32 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button: React.FC<ButtonProps> = ({ className, variant = 'primary', size = 'md', children, ...props }) => {
   const variants = {
-    // Primary: Hanko Red (Stamp Color) - Looks like a physical seal
-    primary: "bg-hanko text-white shadow-md shadow-hanko/30 hover:bg-red-700 hover:shadow-lg hover:shadow-hanko/40 active:translate-y-0.5 active:shadow-sm border border-transparent",
+    // Primary: Hanko Red - 3D Pressed Look
+    primary: "bg-hanko text-white shadow-lg shadow-hanko/30 hover:bg-red-700 hover:shadow-xl hover:shadow-hanko/40 active:translate-y-0.5 active:shadow-sm border border-white/10",
     
-    // Secondary: Bamboo/Paper - Clean and architectural
-    secondary: "bg-white border border-bamboo/20 text-ink hover:bg-rice hover:border-bamboo/40 shadow-sm hover:shadow-md active:translate-y-0.5 text-bamboo hover:text-ink",
+    // Secondary: Clean Glass
+    secondary: "bg-white/80 border border-bamboo/20 text-ink hover:bg-white hover:border-bamboo/40 shadow-sm hover:shadow-md active:translate-y-0.5 backdrop-blur-sm",
     
-    // Ghost: Minimalist ink
-    ghost: "bg-transparent text-bamboo hover:text-ink hover:bg-bamboo/10 active:bg-bamboo/20",
+    // Ghost: Text Only
+    ghost: "bg-transparent text-bamboo hover:text-ink hover:bg-black/5 active:bg-black/10",
     
-    // Danger: Muted Red on Paper
-    danger: "bg-white text-hanko border border-hanko/20 hover:bg-red-50 hover:border-hanko/50 shadow-sm",
+    // Danger: Soft Red
+    danger: "bg-red-50 text-hanko border border-red-200 hover:bg-red-100 hover:border-red-300 shadow-sm",
     
-    // Outline: Bamboo Border
-    outline: "bg-transparent border-2 border-bamboo/30 text-bamboo hover:border-bamboo hover:text-ink hover:bg-white/50"
+    // Outline: Stroked
+    outline: "bg-transparent border-2 border-bamboo/30 text-bamboo hover:border-bamboo hover:text-ink"
   };
 
   const sizes = {
     sm: "px-3 py-1.5 text-xs font-bold tracking-wide rounded-lg",
     md: "px-6 py-3 text-sm font-bold tracking-wide rounded-xl",
-    lg: "px-8 py-4 text-base font-bold tracking-wide rounded-xl"
+    lg: "px-8 py-4 text-base font-bold tracking-wide rounded-2xl"
   };
 
   return (
     <button 
       className={cn(
-        "transition-all duration-200 flex items-center justify-center gap-2 font-jp select-none transform",
+        "transition-all duration-200 flex items-center justify-center gap-2 font-jp select-none transform relative overflow-hidden",
         variants[variant],
         sizes[size],
         className
@@ -86,9 +91,9 @@ export const Input: React.FC<InputProps> = ({ className, label, id, ...props }) 
         <input 
           id={id}
           className={cn(
-            "w-full bg-white/60 backdrop-blur-sm border border-bamboo/20 rounded-xl px-4 py-3.5",
-            "text-ink placeholder-bamboo/30 font-medium shadow-inner",
-            "focus:border-hanko/50 focus:ring-4 focus:ring-hanko/5 focus:bg-white outline-none transition-all duration-300",
+            "w-full bg-white/50 backdrop-blur-sm border border-bamboo/20 rounded-xl px-4 py-3.5",
+            "text-ink placeholder-bamboo/40 font-medium shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]",
+            "focus:border-hanko focus:ring-4 focus:ring-hanko/10 focus:bg-white outline-none transition-all duration-300",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className
           )}
@@ -99,8 +104,8 @@ export const Input: React.FC<InputProps> = ({ className, label, id, ...props }) 
   );
 };
 
-export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = "bg-bamboo/10 text-bamboo border-bamboo/20" }) => (
-  <span className={cn("px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border shadow-sm", color)}>
+export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = "bg-white/50 text-bamboo border-bamboo/20" }) => (
+  <span className={cn("px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border shadow-sm backdrop-blur-sm", color)}>
     {children}
   </span>
 );

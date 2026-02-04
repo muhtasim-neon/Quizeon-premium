@@ -4,7 +4,7 @@ import { GlassCard, Button, Badge } from '../components/UI';
 import { 
   Trophy, Star, TrendingUp, Target, Zap, AlertCircle, 
   Gamepad2, CheckCircle2, Medal, Crown, Flame, 
-  Brain, ArrowRight, Layout, ShieldAlert, GraduationCap, Play
+  Brain, ArrowRight, Layout, ShieldAlert, GraduationCap, Play, Timer
 } from 'lucide-react';
 import { User, SkillStats } from '../types';
 import { 
@@ -24,6 +24,60 @@ const getRank = (xp: number) => {
 };
 
 // --- SUB-COMPONENTS ---
+
+const PowerMetrics = () => {
+    return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <GlassCard className="p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform border-purple-100 hover:border-purple-300">
+                <div className="absolute top-[-10px] right-[-10px] text-purple-50 group-hover:text-purple-100 transition-colors pointer-events-none">
+                    <Brain size={70} />
+                </div>
+                <div className="text-3xl font-black text-purple-600 mb-1 relative z-10">
+                    68%
+                </div>
+                <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
+                    <Brain size={12} /> Mastery Score
+                </div>
+            </GlassCard>
+            
+            <GlassCard className="p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform border-yellow-100 hover:border-yellow-300">
+                 <div className="absolute top-[-10px] right-[-10px] text-yellow-50 group-hover:text-yellow-100 transition-colors pointer-events-none">
+                    <Zap size={70} />
+                </div>
+                <div className="text-3xl font-black text-yellow-600 mb-1 relative z-10">
+                    85%
+                </div>
+                <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
+                    <Zap size={12} /> Avg Accuracy
+                </div>
+            </GlassCard>
+
+            <GlassCard className="p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform border-green-100 hover:border-green-300">
+                 <div className="absolute top-[-10px] right-[-10px] text-green-50 group-hover:text-green-100 transition-colors pointer-events-none">
+                    <Timer size={70} />
+                </div>
+                <div className="text-3xl font-black text-green-600 mb-1 relative z-10">
+                    1.2s
+                </div>
+                <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
+                    <Timer size={12} /> Fastest Answer
+                </div>
+            </GlassCard>
+
+            <GlassCard className="p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform border-hanko/10 hover:border-hanko/30">
+                 <div className="absolute top-[-10px] right-[-10px] text-red-50 group-hover:text-red-100 transition-colors pointer-events-none">
+                    <Target size={70} />
+                </div>
+                <div className="text-lg font-black text-hanko mb-1 mt-1 truncate w-full px-1 relative z-10">
+                    Memory Match
+                </div>
+                <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
+                    <Target size={12} /> Best Game
+                </div>
+            </GlassCard>
+        </div>
+    );
+};
 
 const ExamReadinessCard = () => {
     const readiness = 65; // Mock data
@@ -282,7 +336,10 @@ export const UserDashboard: React.FC<{ user: User }> = ({ user }) => {
           </div>
       </div>
 
-      {/* 2. MAIN GRID LAYOUT */}
+      {/* 2. POWER METRICS (MOTIVATION LAYER) */}
+      <PowerMetrics />
+
+      {/* 3. MAIN GRID LAYOUT */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           
           {/* Row 1: Left (8 cols) & Right (4 cols) */}

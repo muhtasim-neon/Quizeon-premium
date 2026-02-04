@@ -8,13 +8,13 @@ import {
     Calculator, PenTool, Shuffle, Timer, Heart, Move, Zap, Wand2, RefreshCw, Square, MessageCircle,
     Smartphone, Globe, Wifi, ExternalLink, Frown, ThumbsDown, Play, SortAsc, X, Info, Rocket, Flame,
     Target, MousePointer, Search, LayoutGrid, ListOrdered, Skull, Crosshair, Eye, Music,
-    Ear, Briefcase, Coffee, Pause, AlertTriangle, Lightbulb, Star
+    Ear, Briefcase, Coffee, Pause
 } from 'lucide-react';
 import { 
     VOCAB_DATA, KANA_DATA, KANJI_DATA, GRAMMAR_DATA, 
     COUNTER_DATA, NUMBER_DATA, SYNONYM_DATA, ANTONYM_DATA,
     COUNTER_CATEGORIES, NUMBER_CATEGORIES, CONVERSATION_DATA,
-    LISTENING_DATA, FORMAL_INFORMAL_DATA, CONFUSING_PAIRS
+    LISTENING_DATA, FORMAL_INFORMAL_DATA
 } from '../data/mockContent';
 import { LearningItem, StoryContent, ConversationTopic, SongContent } from '../types';
 import { progressService } from '../services/progressService';
@@ -25,7 +25,7 @@ import { useSettings } from '../contexts/SettingsContext';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 type SectionType = 'kana' | 'vocab' | 'kanji' | 'grammar' | 'counter' | 'number' | 'synonym' | 'antonym' | 'conversation' | 'listening' | 'formal_informal';
-type ViewMode = 'list' | 'flashcard' | 'quiz' | 'match' | 'typing' | 'matrix' | 'scramble' | 'builder' | 'particle' | 'math' | 'story' | 'song' | 'conversation' | 'listening_drill' | 'games' | 'kana_spotter' | 'confusion' | 'audio_reflex' | 'practice_menu';
+type ViewMode = 'list' | 'flashcard' | 'quiz' | 'match' | 'typing' | 'matrix' | 'scramble' | 'builder' | 'particle' | 'math' | 'story' | 'song' | 'conversation' | 'listening_drill' | 'games';
 type SortMethod = 'default' | 'az' | 'length' | 'random' | 'serial';
 
 const getDifficultyConfig = (diff: Difficulty) => {
@@ -79,7 +79,8 @@ const MemoryMatchGame: React.FC<{ items: LearningItem[]; onExit: () => void }> =
     const [moves, setMoves] = useState(0);
 
     useEffect(() => {
-        const selection = items.sort(() => 0.5 - Math.random()).slice(0, 6);
+        const safeItems = items.length < 6 ? [...items, ...items] : items;
+        const selection = safeItems.sort(() => 0.5 - Math.random()).slice(0, 6);
         const deck = [...selection.map(k => ({ ...k, display: k.ja, matchId: k.id })), 
                       ...selection.map(k => ({ ...k, display: k.romaji, matchId: k.id }))]
                       .sort(() => 0.5 - Math.random());
@@ -289,319 +290,6 @@ const TypingMasterGame: React.FC<{ items: LearningItem[]; onExit: () => void }> 
     );
 };
 
-// 4. Kana Spotter (Visual Scan Game)
-const KanaSpotterGame: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
-    const { playSound } = useSettings();
-    const [target, setTarget] = useState<LearningItem | null>(null);
-    const [grid, setGrid] = useState<LearningItem[]>([]);
-    const [score, setScore] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(30);
-    const [gameOver, setGameOver] = useState(false);
-
-    useEffect(() => {
-        startRound();
-        const timer = setInterval(() => {
-            setTimeLeft(p => {
-                if (p <= 1) {
-                    clearInterval(timer);
-                    setGameOver(true);
-                    playSound('gameover');
-                    return 0;
-                }
-                return p - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, []);
-
-    const startRound = () => {
-        const shuffled = [...items].sort(() => 0.5 - Math.random());
-        const roundItems = shuffled.slice(0, 16); // 4x4 Grid
-        const newTarget = roundItems[Math.floor(Math.random() * roundItems.length)];
-        setGrid(roundItems);
-        setTarget(newTarget);
-    };
-
-    const handleTap = (item: LearningItem) => {
-        if (!target) return;
-        if (item.id === target.id) {
-            playSound('hit');
-            setScore(s => s + 10);
-            setTimeLeft(t => Math.min(t + 2, 60)); // Bonus time
-            startRound();
-        } else {
-            playSound('wrong');
-            setTimeLeft(t => Math.max(t - 3, 0)); // Penalty time
-        }
-    };
-
-    if (gameOver) {
-        return (
-            <div className="text-center py-10 animate-pop">
-                <Crosshair size={64} className="mx-auto text-bamboo mb-6" />
-                <h3 className="text-3xl font-bold text-ink mb-2">Time's Up!</h3>
-                <div className="text-6xl font-mono font-bold text-hanko mb-4">{score}</div>
-                <Button onClick={onExit}><RotateCw size={18} /> Finish</Button>
-            </div>
-        );
-    }
-
-    return (
-        <div className="py-4 max-w-lg mx-auto">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex flex-col">
-                    <span className="text-xs text-bamboo font-bold uppercase">Target</span>
-                    <span className="text-3xl font-bold text-hanko font-jp">{target?.ja}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                    <span className="text-xl font-mono font-bold text-ink">{timeLeft}s</span>
-                </div>
-                <div className="flex flex-col items-end">
-                    <span className="text-xs text-bamboo font-bold uppercase">Score</span>
-                    <span className="text-2xl font-mono font-bold text-ink">{score}</span>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-4 gap-3">
-                {grid.map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => handleTap(item)}
-                        className="aspect-square bg-white border border-bamboo/20 rounded-xl text-2xl font-bold text-ink hover:bg-rice hover:scale-105 active:scale-95 transition-all shadow-sm"
-                    >
-                        {item.ja}
-                    </button>
-                ))}
-            </div>
-            <div className="text-center mt-6">
-                <Button variant="ghost" size="sm" onClick={onExit}>Exit Game</Button>
-            </div>
-        </div>
-    );
-};
-
-// 5. Confusion Killer (Pattern Recognition)
-const ConfusionKillerGame: React.FC<{ onExit: () => void }> = ({ onExit }) => {
-    const { playSound } = useSettings();
-    const [currentPair, setCurrentPair] = useState<any>(null);
-    const [options, setOptions] = useState<string[]>([]);
-    const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
-    const [streak, setStreak] = useState(0);
-
-    useEffect(() => {
-        nextQuestion();
-    }, []);
-
-    const nextQuestion = () => {
-        const pair = CONFUSING_PAIRS[Math.floor(Math.random() * CONFUSING_PAIRS.length)];
-        setCurrentPair(pair);
-        // Randomize position
-        setOptions(Math.random() > 0.5 ? [pair.correct, pair.wrong] : [pair.wrong, pair.correct]);
-        setFeedback(null);
-    };
-
-    const handleGuess = (char: string) => {
-        if (!currentPair) return;
-        if (char === currentPair.correct) {
-            playSound('correct');
-            setFeedback('correct');
-            setStreak(s => s + 1);
-            setTimeout(nextQuestion, 1500);
-        } else {
-            playSound('wrong');
-            setFeedback('wrong');
-            setStreak(0);
-        }
-    };
-
-    return (
-        <div className="py-8 max-w-md mx-auto text-center">
-            <div className="flex justify-between items-center mb-8">
-                <span className="text-sm font-bold text-bamboo uppercase tracking-widest">Confusion Breaker</span>
-                <span className="text-sm font-bold text-hanko">Streak: {streak}</span>
-            </div>
-
-            {currentPair && (
-                <>
-                    <h3 className="text-2xl font-bold text-ink mb-2">Find: <span className="text-hanko">{currentPair.label.split(' ')[0]}</span></h3>
-                    <p className="text-bamboo text-sm mb-8">Which one is correct?</p>
-
-                    <div className="grid grid-cols-2 gap-6 mb-8">
-                        {options.map((char, i) => (
-                            <button 
-                                key={i}
-                                onClick={() => handleGuess(char)}
-                                disabled={!!feedback}
-                                className={`text-8xl font-jp font-bold p-8 rounded-3xl border-2 transition-all ${
-                                    feedback 
-                                    ? char === currentPair.correct 
-                                        ? 'bg-green-100 border-green-500 text-green-800' 
-                                        : 'bg-red-50 border-red-200 text-red-300 opacity-50'
-                                    : 'bg-white border-bamboo/20 hover:border-hanko hover:bg-rice'
-                                }`}
-                            >
-                                {char}
-                            </button>
-                        ))}
-                    </div>
-
-                    {feedback === 'wrong' && (
-                        <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl animate-shake mb-6">
-                            <div className="flex items-center gap-2 text-orange-800 font-bold mb-1">
-                                <Lightbulb size={18} /> Tip
-                            </div>
-                            <p className="text-ink">{currentPair.hint}</p>
-                        </div>
-                    )}
-                    
-                    {feedback === 'correct' && (
-                        <div className="text-green-600 font-bold text-xl animate-pop mb-6">
-                            Correct!
-                        </div>
-                    )}
-                </>
-            )}
-            
-            <Button variant="ghost" onClick={onExit}>Quit</Button>
-        </div>
-    );
-};
-
-// 6. Audio Reflex (Listening Game)
-const AudioReflexGame: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
-    const { speak, playSound } = useSettings();
-    const [target, setTarget] = useState<LearningItem | null>(null);
-    const [options, setOptions] = useState<LearningItem[]>([]);
-    const [score, setScore] = useState(0);
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        nextRound();
-    }, []);
-
-    const nextRound = () => {
-        setLoading(true);
-        const shuffled = [...items].sort(() => 0.5 - Math.random());
-        const roundTarget = shuffled[0];
-        const roundOptions = shuffled.slice(0, 4).sort(() => 0.5 - Math.random());
-        setTarget(roundTarget);
-        setOptions(roundOptions);
-        setLoading(false);
-        // Auto play sound after slight delay
-        setTimeout(() => speak(roundTarget.ja), 500);
-    };
-
-    const handleGuess = (item: LearningItem) => {
-        if (!target) return;
-        if (item.id === target.id) {
-            playSound('correct');
-            setScore(s => s + 10);
-            nextRound();
-        } else {
-            playSound('wrong');
-            speak(target.ja); // Replay sound
-        }
-    };
-
-    return (
-        <div className="py-8 max-w-md mx-auto text-center">
-            <div className="flex justify-between items-center mb-8">
-                <span className="text-sm font-bold text-bamboo uppercase">Sound Reflex</span>
-                <span className="text-2xl font-mono font-bold text-ink">{score}</span>
-            </div>
-
-            <div className="mb-12">
-                <button 
-                    onClick={() => target && speak(target.ja)}
-                    className="w-32 h-32 rounded-full bg-hanko text-white shadow-xl shadow-hanko/30 flex items-center justify-center mx-auto hover:scale-105 active:scale-95 transition-transform"
-                >
-                    <Volume2 size={48} />
-                </button>
-                <p className="text-bamboo mt-4 text-sm font-bold uppercase tracking-widest">Tap to Listen Again</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-8">
-                {options.map((opt) => (
-                    <button
-                        key={opt.id}
-                        onClick={() => handleGuess(opt)}
-                        className="p-6 bg-white border border-bamboo/20 rounded-xl text-3xl font-bold text-ink hover:bg-rice hover:border-hanko transition-all"
-                    >
-                        {opt.ja}
-                    </button>
-                ))}
-            </div>
-
-            <Button variant="ghost" onClick={onExit}>Exit</Button>
-        </div>
-    );
-};
-
-// --- GAME ARCADE MENU ---
-
-const GameArcadeMenu: React.FC<{ onSelect: (mode: ViewMode) => void }> = ({ onSelect }) => {
-    return (
-        <div className="space-y-8 animate-fade-in">
-            <div className="text-center">
-                <h2 className="text-4xl font-bold text-ink mb-2 font-serif">Game Arcade</h2>
-                <p className="text-bamboo">Train your reflexes, memory, and ears.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* 1. Recognition */}
-                <GlassCard hoverEffect onClick={() => onSelect('match')} className="cursor-pointer group border-t-4 border-t-blue-400">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl group-hover:scale-110 transition-transform"><Grid size={24} /></div>
-                        <Badge color="bg-blue-50 text-blue-600">Memory</Badge>
-                    </div>
-                    <h3 className="text-xl font-bold text-ink mb-1">Memory Match</h3>
-                    <p className="text-sm text-bamboo">Flip cards to find matching pairs.</p>
-                </GlassCard>
-
-                {/* 2. Speed */}
-                <GlassCard hoverEffect onClick={() => onSelect('kana_spotter')} className="cursor-pointer group border-t-4 border-t-hanko">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-red-100 text-hanko rounded-2xl group-hover:scale-110 transition-transform"><Crosshair size={24} /></div>
-                        <Badge color="bg-red-50 text-hanko">Reflex</Badge>
-                    </div>
-                    <h3 className="text-xl font-bold text-ink mb-1">Kana Spotter</h3>
-                    <p className="text-sm text-bamboo">Find the target character in the crowd.</p>
-                </GlassCard>
-
-                {/* 3. Typing */}
-                <GlassCard hoverEffect onClick={() => onSelect('typing')} className="cursor-pointer group border-t-4 border-t-purple-400">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-purple-100 text-purple-600 rounded-2xl group-hover:scale-110 transition-transform"><Keyboard size={24} /></div>
-                        <Badge color="bg-purple-50 text-purple-600">Speed</Badge>
-                    </div>
-                    <h3 className="text-xl font-bold text-ink mb-1">Typing Master</h3>
-                    <p className="text-sm text-bamboo">Type the Romaji before time runs out.</p>
-                </GlassCard>
-
-                {/* 4. Confusion */}
-                <GlassCard hoverEffect onClick={() => onSelect('confusion')} className="cursor-pointer group border-t-4 border-t-orange-400">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-orange-100 text-orange-600 rounded-2xl group-hover:scale-110 transition-transform"><AlertTriangle size={24} /></div>
-                        <Badge color="bg-orange-50 text-orange-600">Educational</Badge>
-                    </div>
-                    <h3 className="text-xl font-bold text-ink mb-1">Confusion Killer</h3>
-                    <p className="text-sm text-bamboo">Master tricky pairs like Shi/Tsu & So/N.</p>
-                </GlassCard>
-
-                {/* 5. Listening */}
-                <GlassCard hoverEffect onClick={() => onSelect('audio_reflex')} className="cursor-pointer group border-t-4 border-t-green-400">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-green-100 text-green-600 rounded-2xl group-hover:scale-110 transition-transform"><Ear size={24} /></div>
-                        <Badge color="bg-green-50 text-green-600">Listening</Badge>
-                    </div>
-                    <h3 className="text-xl font-bold text-ink mb-1">Sound Reflex</h3>
-                    <p className="text-sm text-bamboo">Listen and tap the correct character.</p>
-                </GlassCard>
-            </div>
-        </div>
-    );
-};
-
 // --- SUB-COMPONENTS FOR GAMES ---
 
 const DifficultySelector: React.FC<{ current: Difficulty; onChange: (d: Difficulty) => void }> = ({ current, onChange }) => (
@@ -623,7 +311,7 @@ const DifficultySelector: React.FC<{ current: Difficulty; onChange: (d: Difficul
 );
 
 const LessonStoryView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
-    const { speak, isSpeaking, isPaused, pauseAudio, resumeAudio, stopAudio } = useSettings();
+    const { speak, isPaused, pauseAudio, resumeAudio, stopAudio } = useSettings();
     const [story, setStory] = useState<StoryContent | null>(null);
     const [loading, setLoading] = useState(false);
     const [showTranslation, setShowTranslation] = useState<'none' | 'en' | 'bn'>('none');
@@ -791,11 +479,7 @@ const LessonSongView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
         setIsPlaying(false);
         isPlayingRef.current = false;
         setCurrentLineIndex(-1);
-        
-        // Stop Speech
         stopAudio();
-        
-        // Stop Music
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
@@ -817,11 +501,9 @@ const LessonSongView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
         setIsPlaying(true);
         isPlayingRef.current = true;
 
-        // 1. Initialize & Start Music (Instrumental Track)
         if (!audioRef.current) {
-            // Using a royalty-free upbeat instrumental track for the "Song" feel
             audioRef.current = new Audio('https://commondatastorage.googleapis.com/codeskulptor-demos/riceracer_assets/music/race1.ogg'); 
-            audioRef.current.volume = 0.2; // Keep background music lower than voice
+            audioRef.current.volume = 0.2; 
             audioRef.current.loop = true;
         }
 
@@ -831,22 +513,17 @@ const LessonSongView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
             console.warn("Audio play blocked (needs interaction)", e);
         }
         
-        // 2. Iterate Lyrics with proper synchronization
         for (let i = 0; i < song.lyrics.length; i++) {
-            if (!isPlayingRef.current) break; // Check cancel flag
+            if (!isPlayingRef.current) break; 
             
             setCurrentLineIndex(i);
             const line = song.lyrics[i];
             
-            // Speak the line - wait for it to finish
-            // The speech system now supports pausing natively via context
             await speak(line.kana);
             
-            // Brief pause between lines
             await new Promise(r => setTimeout(r, 600));
         }
 
-        // 3. Finish
         stopSong();
     };
 
@@ -1186,7 +863,6 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
     const [questions, setQuestions] = useState<any[]>([]);
     const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
     const [timeLeft, setTimeLeft] = useState(10);
-    const [streak, setStreak] = useState(0); // Added streak state
     const config = getDifficultyConfig(difficulty);
 
     useEffect(() => {
@@ -1242,7 +918,6 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
         setCurrentQIndex(0);
         setShowScore(false);
         setTimeLeft(config.time);
-        setStreak(0);
     }, [items, difficulty, customMode]);
 
     useEffect(() => {
@@ -1261,16 +936,12 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
         const isCorrect = option === questions[currentQIndex].correct;
         if (isCorrect) {
             playSound('correct');
-            // Bonus XP Calculation based on streak
-            const bonus = streak * 2;
             setScore(score + 10);
-            progressService.addXP(10 + bonus);
-            setStreak(s => s + 1);
+            progressService.addXP(10);
             setFeedback('correct');
         } else {
             playSound('wrong');
             setLives(prev => prev - 1);
-            setStreak(0);
             setFeedback('wrong');
         }
         setTimeout(() => {
@@ -1280,10 +951,8 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
                 setTimeLeft(config.time);
             } else {
                 setShowScore(true);
-                // Calculate final results even if failed mid-way
-                const finalScore = score + (isCorrect ? 10 : 0);
-                // Only mark complete if finished all questions
                 if (currentQIndex === questions.length - 1 && (lives > 0 || isCorrect)) {
+                     const finalScore = score + (isCorrect ? 10 : 0);
                      if (onComplete) onComplete(finalScore, questions.length * 10);
                 }
             }
@@ -1307,7 +976,7 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
                     </div>
                     {passed && <div className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-lg mb-6 font-bold border border-green-200">Lesson Mastered!</div>}
                     <p className="text-bamboo mb-8">Score: {score} / {questions.length * 10}</p>
-                    <Button onClick={() => { setShowScore(false); setCurrentQIndex(0); setScore(0); setLives(config.lives); setStreak(0); }} className="w-full">
+                    <Button onClick={() => { setShowScore(false); setCurrentQIndex(0); setScore(0); setLives(config.lives); }} className="w-full">
                         <RotateCw size={18} /> Retry Quiz
                     </Button>
                 </GlassCard>
@@ -1324,10 +993,7 @@ const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal
                     <span className="flex items-center gap-1 text-hanko bg-white/60 px-3 py-1 rounded-lg border border-hanko/10 shadow-sm"><Heart size={18} fill="currentColor" /> {lives}</span>
                     <span className="flex items-center gap-1 text-straw bg-white/60 px-3 py-1 rounded-lg border border-straw/10 shadow-sm"><Timer size={18} /> {timeLeft}s</span>
                 </div>
-                <div className="flex gap-2">
-                    {streak > 1 && <span className="flex items-center gap-1 text-orange-500 font-bold bg-orange-100 px-2 py-1 rounded-lg text-xs animate-pulse">🔥 {streak}x</span>}
-                    <span className="text-bamboo font-bold text-sm bg-white/60 px-3 py-1 rounded-lg border border-bamboo/10">Q {currentQIndex + 1}/{questions.length}</span>
-                </div>
+                <span className="text-bamboo font-bold text-sm bg-white/60 px-3 py-1 rounded-lg border border-bamboo/10">Q {currentQIndex + 1}/{questions.length}</span>
             </div>
             <GlassCard className={`text-center py-16 mb-6 border-2 transition-all duration-300 ${feedback === 'correct' ? 'border-green-500 bg-green-50 scale-105' : feedback === 'wrong' ? 'border-hanko bg-red-50 animate-pulse' : 'border-bamboo/20'}`}>
                 <h2 className="text-3xl md:text-4xl font-jp font-bold text-ink mb-4 whitespace-pre-line leading-relaxed">{currentQ.question}</h2>
@@ -1402,7 +1068,6 @@ export const LearningHub: React.FC = () => {
     const [difficulty, setDifficulty] = useState<Difficulty>('medium');
     
     // Filters
-    const [kanaStep, setKanaStep] = useState<'system' | 'variation' | 'list'>('system');
     const [kanaSystem, setKanaSystem] = useState<'Hiragana' | 'Katakana' | 'Mixed'>('Hiragana');
     const [kanaVar, setKanaVar] = useState<'basic' | 'dakuten' | 'youon'>('basic');
     const [lessonMode, setLessonMode] = useState<'lesson' | 'category'>('lesson');
@@ -1438,21 +1103,11 @@ export const LearningHub: React.FC = () => {
         };
     }, [viewMode, activeSection]);
 
-    // Reset step when changing sections
-    useEffect(() => {
-        setKanaStep('system');
-        setViewMode('list');
-    }, [activeSection]);
-
     const handleLessonComplete = (score: number, total: number) => {
         if (score / total >= 0.8) {
              // Mark lesson complete
              if (activeSection === 'grammar') progressService.markLessonComplete(`grammar-lesson-${selectedLesson}`);
              if (activeSection === 'vocab' && lessonMode === 'lesson') progressService.markLessonComplete(`vocab-lesson-${selectedLesson}`);
-             // New Kana Completion
-             if (activeSection === 'kana') {
-                 progressService.markLessonComplete(`kana-${kanaSystem}-${kanaVar}`);
-             }
              setCompletedLessons(progressService.getCompletedLessons());
         }
     };
@@ -1503,9 +1158,7 @@ export const LearningHub: React.FC = () => {
             setViewMode('conversation'); 
         } else if (activeSection === 'listening') {
             setViewMode('listening_drill');
-        }
-        // Don't auto-set to list for Kana, as it uses step logic
-        else if (activeSection !== 'kana') {
+        } else {
             setViewMode('list'); 
         }
     }, [activeSection]);
@@ -1575,9 +1228,6 @@ export const LearningHub: React.FC = () => {
     
     // Helper to check completion
     const isComplete = (id: string) => completedLessons.includes(id);
-
-    // Checks for specific Kana Section Completion to determine Green Glow
-    const isKanaSectionComplete = (sys: string, v: string) => isComplete(`kana-${sys}-${v}`);
 
     // --- MAIN MENU RENDER ---
     if (!activeSection) {
@@ -1668,29 +1318,15 @@ export const LearningHub: React.FC = () => {
       <div className="space-y-6 animate-fade-in">
           <div className="flex flex-col xl:flex-row items-start xl:items-center gap-4 border-b border-bamboo/10 pb-4 justify-between">
               <div className="flex items-center gap-4">
-                  {/* Back Button Logic */}
-                  <Button variant="ghost" onClick={() => {
-                      if (activeSection === 'kana') {
-                          if (kanaStep === 'list' && viewMode === 'practice_menu') setViewMode('list');
-                          else if (kanaStep === 'list') setKanaStep('variation');
-                          else if (kanaStep === 'variation') setKanaStep('system');
-                          else setActiveSection(null);
-                      } else {
-                          setActiveSection(null);
-                      }
-                  }} className="p-2 h-auto"><ArrowLeft size={20} /></Button>
+                  <Button variant="ghost" onClick={() => setActiveSection(null)} className="p-2 h-auto"><ArrowLeft size={20} /></Button>
                   <div>
                       <h1 className="text-2xl font-bold text-ink capitalize font-serif">{activeSection === 'kana' ? 'Kana Systems' : activeSection?.replace('_', ' ')}</h1>
-                      <p className="text-sm text-bamboo">
-                          {activeSection === 'kana' 
-                            ? (kanaStep === 'system' ? 'Select System' : kanaStep === 'variation' ? 'Select Variation' : 'Study List')
-                            : 'Select a game mode'}
-                      </p>
+                      <p className="text-sm text-bamboo">Select a game mode</p>
                   </div>
               </div>
               
-              {/* Mode Selectors (Hidden for Listening/Conversation/Kana Steps 1&2) */}
-              {activeSection !== 'listening' && activeSection !== 'kana' && (
+              {/* Mode Selectors (Hidden for Listening/Conversation) */}
+              {activeSection !== 'listening' && (
                   <div className="flex flex-wrap gap-2 bg-white/40 p-1.5 rounded-xl border border-bamboo/10">
                        {getAvailableModes().map(m => (
                            <button key={m.id} onClick={() => setViewMode(m.id as any)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${viewMode === m.id ? 'bg-hanko text-white shadow-lg' : 'text-bamboo hover:text-hanko hover:bg-white/60'}`}>
@@ -1699,235 +1335,189 @@ export const LearningHub: React.FC = () => {
                        ))}
                   </div>
               )}
-
-              {/* Kana Practice Button */}
-              {activeSection === 'kana' && kanaStep === 'list' && viewMode === 'list' && (
-                  <Button onClick={() => setViewMode('practice_menu')} className="animate-pulse">
-                      <Gamepad2 size={18} /> Practice
-                  </Button>
-              )}
           </div>
   
-          {/* Difficulty Selector - Hidden for lists/menus */}
-          {viewMode !== 'list' && viewMode !== 'flashcard' && viewMode !== 'story' && viewMode !== 'song' && viewMode !== 'games' && viewMode !== 'practice_menu' && !['kana_spotter', 'confusion', 'audio_reflex', 'listening_drill'].includes(viewMode) && activeSection !== 'listening' && (
+          {viewMode !== 'list' && viewMode !== 'flashcard' && viewMode !== 'story' && viewMode !== 'song' && viewMode !== 'games' && activeSection !== 'listening' && (
               <DifficultySelector current={difficulty} onChange={setDifficulty} />
           )}
   
-          {/* --- KANA STEP 1: SYSTEM SELECTION --- */}
-          {activeSection === 'kana' && kanaStep === 'system' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
-                  {['Hiragana', 'Katakana', 'Mixed'].map((sys) => (
-                      <GlassCard 
-                        key={sys} 
-                        hoverEffect 
-                        onClick={() => { setKanaSystem(sys as any); setKanaStep('variation'); }}
-                        className="cursor-pointer group text-center py-16 flex flex-col items-center justify-center border-t-4 border-t-bamboo/20"
+          <GlassCard className="py-6 border-t-4 border-t-bamboo/20">
+              {/* Filters UI */}
+              {activeSection === 'kana' && viewMode !== 'games' && (
+                  <div className="flex flex-col md:flex-row gap-6">
+                      <div className="flex gap-2 bg-white/40 p-1 rounded-xl border border-bamboo/10">
+                          {['Hiragana', 'Katakana', 'Mixed'].map(sys => <button key={sys} onClick={() => setKanaSystem(sys as any)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${kanaSystem === sys ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>{sys}</button>)}
+                      </div>
+                      <div className="flex items-center gap-3">
+                           <span className="text-bamboo font-bold text-sm hidden md:block uppercase tracking-widest">Variation</span>
+                           <div className="flex gap-2">{['basic', 'dakuten', 'youon'].map(v => <Button key={v} variant={kanaVar === v ? 'primary' : 'secondary'} size="sm" onClick={() => setKanaVar(v as any)} className="capitalize">{v}</Button>)}</div>
+                      </div>
+                  </div>
+              )}
+              
+              {(activeSection === 'vocab' || activeSection === 'kanji') && (
+                  <div className="flex flex-col md:flex-row gap-6 items-center flex-wrap">
+                      <div className="flex gap-2 bg-white/40 p-1 rounded-xl border border-bamboo/10">
+                          <button onClick={() => setLessonMode('lesson')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'lesson' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>Lesson Wise</button>
+                          <button onClick={() => setLessonMode('category')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'category' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>Category Wise</button>
+                      </div>
+                      <select 
+                          className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko focus:ring-2 focus:ring-hanko/10 transition-all font-medium" 
+                          value={lessonMode === 'lesson' ? selectedLesson : selectedCategory} 
+                          onChange={(e) => lessonMode === 'lesson' ? setSelectedLesson(Number(e.target.value)) : setSelectedCategory(e.target.value)}
                       >
-                          <div className="w-20 h-20 bg-rice rounded-full flex items-center justify-center mb-6 text-3xl font-jp font-bold shadow-inner">
-                              {sys === 'Hiragana' ? 'あ' : sys === 'Katakana' ? 'ア' : 'あア'}
+                          {lessonMode === 'lesson' ? uniqueLessons.map(l => (
+                              <option key={l} value={l} className={isComplete(`${activeSection}-lesson-${l}`) ? "bg-green-100 font-bold text-green-700" : ""}>
+                                  Lesson {l} {isComplete(`${activeSection}-lesson-${l}`) ? '✅' : ''}
+                              </option>
+                          )) : (activeSection === 'vocab' ? uniqueVocabCats : uniqueKanjiCats).map(c => (
+                              <option key={c} value={c} className={isComplete(`${activeSection}-cat-${c}`) ? "bg-green-100 font-bold text-green-700" : ""}>
+                                  {c} {isComplete(`${activeSection}-cat-${c}`) ? '✅' : ''}
+                              </option>
+                          ))}
+                      </select>
+                  </div>
+              )}
+              
+              {/* Sorting Controls for List View */}
+              {viewMode === 'list' && activeSection !== 'formal_informal' && (
+                  <div className="mt-6 pt-4 border-t border-bamboo/10 flex flex-wrap gap-3 items-center">
+                      <span className="text-xs font-bold uppercase text-bamboo/60 mr-2 tracking-widest">Sort By</span>
+                      <Button size="sm" variant={sortMethod === 'az' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'az' ? 'default' : 'az')}>
+                          <SortAsc size={14} /> A-Z
+                      </Button>
+                      <Button size="sm" variant={sortMethod === 'length' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'length' ? 'default' : 'length')}>
+                          <Scale size={14} /> Shortest
+                      </Button>
+                      <Button size="sm" variant={sortMethod === 'random' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'random' ? 'default' : 'random')}>
+                          <Shuffle size={14} /> Random
+                      </Button>
+                      <Button size="sm" variant={sortMethod === 'serial' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'serial' ? 'default' : 'serial')}>
+                          <ListOrdered size={14} /> Serial
+                      </Button>
+                      
+                      <div className="h-6 w-px bg-bamboo/20 mx-2"></div>
+                      
+                      {isPlayingAll ? (
+                          <>
+                              {isPaused ? (
+                                  <Button size="sm" onClick={resumeAudio} className="bg-green-600 hover:bg-green-700 text-white shadow-green-200">
+                                      <Play size={14} fill="currentColor" /> Resume
+                                  </Button>
+                              ) : (
+                                  <Button size="sm" variant="secondary" onClick={pauseAudio}>
+                                      <Pause size={14} fill="currentColor" /> Pause
+                                  </Button>
+                              )}
+                              <Button size="sm" variant="danger" onClick={() => { stopAudio(); setIsPlayingAll(false); }}>
+                                  <Square size={14} fill="currentColor" /> Stop
+                              </Button>
+                          </>
+                      ) : (
+                          <Button size="sm" variant="secondary" onClick={handlePlayAll}>
+                              <Volume2 size={14} /> Listen All
+                          </Button>
+                      )}
+                  </div>
+              )}
+              
+              {activeSection === 'grammar' && (
+                  <div className="flex items-center gap-4">
+                      <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Select Lesson</span>
+                      <select 
+                          className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko transition-all font-medium" 
+                          value={selectedLesson} 
+                          onChange={(e) => setSelectedLesson(Number(e.target.value))}
+                      >
+                          {uniqueLessons.map(l => (
+                              <option key={l} value={l} className={isComplete(`grammar-lesson-${l}`) ? "bg-green-100 font-bold text-green-700" : ""}>
+                                  Lesson {l} {isComplete(`grammar-lesson-${l}`) ? '✅' : ''}
+                              </option>
+                          ))}
+                      </select>
+                  </div>
+              )}
+              {activeSection === 'counter' && (
+                  <div className="flex items-center gap-4">
+                       <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Category</span>
+                       <select className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko w-full md:w-64" value={selectedCounterGroup} onChange={(e) => setSelectedCounterGroup(e.target.value)}>{COUNTER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                  </div>
+              )}
+              {activeSection === 'number' && (
+                  <div className="flex items-center gap-4">
+                       <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Category</span>
+                       <select className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko w-full md:w-64" value={selectedNumberGroup} onChange={(e) => setSelectedNumberGroup(e.target.value)}>{NUMBER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                  </div>
+              )}
+              {activeSection === 'listening' && (
+                  <div className="text-bamboo">
+                      Listen to the phrase and guess the meaning.
+                  </div>
+              )}
+              {activeSection === 'formal_informal' && (
+                  <div className="text-bamboo">
+                      Compare Polite (Desu/Masu) and Casual forms.
+                  </div>
+              )}
+          </GlassCard>
+  
+          {viewMode === 'listening_drill' && <ListeningDrillView items={currentContent} />}
+  
+          {viewMode === 'list' && (
+              <div className={`grid gap-4 ${activeSection === 'kana' ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+                  {currentContent.map((item) => (
+                      <GlassCard key={item.id} className="relative group hover:border-hanko/30 transition-all cursor-pointer overflow-hidden hover:-translate-y-1" onClick={() => speak(item.ja)}>
+                          
+                          {/* Pronunciation Guide Overlay for Kana */}
+                          {activeSection === 'kana' && (
+                              <div className="absolute inset-0 bg-ink/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 backdrop-blur-[2px]">
+                                  <Volume2 className="text-straw mb-2 animate-bounce" size={24} />
+                                  <p className="text-white font-bold text-lg capitalize">{item.romaji}</p>
+                                  <p className="text-[10px] text-bamboo uppercase tracking-widest mt-1">Pronunciation</p>
+                              </div>
+                          )}
+  
+                          {activeSection === 'formal_informal' ? (
+                              <div className="flex gap-4">
+                                  <div className="flex-1 border-r border-bamboo/10 pr-4">
+                                      <div className="text-xs text-hanko uppercase font-bold mb-1"><Briefcase size={10} className="inline mr-1"/> Polite</div>
+                                      <div className="text-xl font-jp font-bold text-ink">{item.ja}</div>
+                                  </div>
+                                  <div className="flex-1 pl-1">
+                                      <div className="text-xs text-bamboo uppercase font-bold mb-1"><Coffee size={10} className="inline mr-1"/> Casual</div>
+                                      <div className="text-xl font-jp font-bold text-ink/80">{item.romaji}</div>
+                                  </div>
+                              </div>
+                          ) : (
+                              <>
+                                  <div className="text-3xl font-jp font-bold text-ink mb-2 relative z-10">{item.ja}</div>
+                                  <div className={`font-medium mb-3 relative z-10 ${activeSection === 'synonym' || activeSection === 'antonym' ? 'text-xl text-straw font-jp' : 'text-hanko'}`}>{item.romaji}</div>
+                              </>
+                          )}
+                          
+                          <div className="pt-3 border-t border-bamboo/10 relative z-10">
+                              <p className="text-ink/80">{item.en}</p>
+                              {item.bn && <p className="text-xs text-bamboo mt-1">🇧🇩 {item.bn}</p>}
+                              {item.usage && <p className="text-xs text-bamboo mt-2 bg-bamboo/5 p-2 rounded italic">Ex: {item.usage}</p>}
                           </div>
-                          <h2 className="text-2xl font-bold text-ink mb-2">{sys}</h2>
-                          <p className="text-bamboo text-sm">Tap to continue</p>
                       </GlassCard>
                   ))}
-              </div>
-          )}
-
-          {/* --- KANA STEP 2: VARIATION SELECTION --- */}
-          {activeSection === 'kana' && kanaStep === 'variation' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
-                  {['basic', 'dakuten', 'youon'].map((v) => {
-                      const completed = isKanaSectionComplete(kanaSystem, v);
-                      return (
-                        <GlassCard 
-                            key={v} 
-                            hoverEffect 
-                            onClick={() => { setKanaVar(v as any); setKanaStep('list'); }}
-                            className={`cursor-pointer group text-center py-16 flex flex-col items-center justify-center border-t-4 transition-all ${completed ? 'border-t-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]' : 'border-t-bamboo/20'}`}
-                        >
-                            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 text-3xl font-jp font-bold shadow-inner relative ${completed ? 'bg-green-100 text-green-700' : 'bg-rice text-ink'}`}>
-                                {v === 'basic' ? 'Basic' : v === 'dakuten' ? '゛' : 'ゃ'}
-                                {completed && <div className="absolute -top-2 -right-2 bg-green-500 text-white p-1 rounded-full"><CheckCircle size={16} /></div>}
-                            </div>
-                            <h2 className="text-2xl font-bold text-ink mb-2 capitalize">{v}</h2>
-                            <p className="text-bamboo text-sm">{completed ? 'Mastered!' : 'Tap to start'}</p>
-                        </GlassCard>
-                      );
-                  })}
-              </div>
-          )}
-
-          {/* --- KANA STEP 3: PRACTICE MENU --- */}
-          {activeSection === 'kana' && viewMode === 'practice_menu' && (
-              <div className="animate-fade-in">
-                  <div className="text-center mb-8">
-                      <h2 className="text-3xl font-bold text-ink mb-2">Practice Arena</h2>
-                      <Badge>{kanaSystem} - {kanaVar}</Badge>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <GlassCard hoverEffect onClick={() => setViewMode('quiz')} className="cursor-pointer text-center py-10 group">
-                          <HelpCircle size={48} className="mx-auto mb-4 text-hanko group-hover:scale-110 transition-transform" />
-                          <h3 className="text-xl font-bold text-ink">Quiz</h3>
-                          <p className="text-sm text-bamboo mt-2">Multiple choice challenge. Get 80%+ to master.</p>
-                      </GlassCard>
-                      <GlassCard hoverEffect onClick={() => setViewMode('flashcard')} className="cursor-pointer text-center py-10 group">
-                          <Layers size={48} className="mx-auto mb-4 text-blue-500 group-hover:scale-110 transition-transform" />
-                          <h3 className="text-xl font-bold text-ink">Flashcards</h3>
-                          <p className="text-sm text-bamboo mt-2">Memorize at your own pace.</p>
-                      </GlassCard>
-                      <GlassCard hoverEffect onClick={() => setViewMode('games')} className="cursor-pointer text-center py-10 group">
-                          <Gamepad2 size={48} className="mx-auto mb-4 text-purple-500 group-hover:scale-110 transition-transform" />
-                          <h3 className="text-xl font-bold text-ink">Arcade</h3>
-                          <p className="text-sm text-bamboo mt-2">Fun mini-games to test speed.</p>
-                      </GlassCard>
-                  </div>
-              </div>
-          )}
-
-          {/* --- GENERIC LIST VIEW (Includes Kana Step 3 List) --- */}
-          {viewMode === 'list' && activeSection && (kanaStep === 'list' || activeSection !== 'kana') && (
-              <div className="animate-fade-in">
-                  
-                  {/* Non-Kana Sorting Controls */}
-                  {activeSection !== 'kana' && activeSection !== 'formal_informal' && (
-                      <GlassCard className="mb-6 py-4 flex flex-wrap gap-3 items-center border-t-4 border-t-bamboo/20">
-                          {/* ... Existing Sorting Logic ... */}
-                          <span className="text-xs font-bold uppercase text-bamboo/60 mr-2 tracking-widest">Sort By</span>
-                          <Button size="sm" variant={sortMethod === 'az' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'az' ? 'default' : 'az')}>
-                              <SortAsc size={14} /> A-Z
-                          </Button>
-                          <Button size="sm" variant={sortMethod === 'length' ? 'primary' : 'secondary'} onClick={() => setSortMethod(sortMethod === 'length' ? 'default' : 'length')}>
-                              <Scale size={14} /> Shortest
-                          </Button>
-                          
-                          <div className="h-6 w-px bg-bamboo/20 mx-2"></div>
-                          
-                          {isPlayingAll ? (
-                              <>
-                                  {isPaused ? (
-                                      <Button size="sm" onClick={resumeAudio} className="bg-green-600 hover:bg-green-700 text-white shadow-green-200">
-                                          <Play size={14} fill="currentColor" /> Resume
-                                      </Button>
-                                  ) : (
-                                      <Button size="sm" variant="secondary" onClick={pauseAudio}>
-                                          <Pause size={14} fill="currentColor" /> Pause
-                                      </Button>
-                                  )}
-                                  <Button size="sm" variant="danger" onClick={() => { stopAudio(); setIsPlayingAll(false); }}>
-                                      <Square size={14} fill="currentColor" /> Stop
-                                  </Button>
-                              </>
-                          ) : (
-                              <Button size="sm" variant="secondary" onClick={handlePlayAll}>
-                                  <Volume2 size={14} /> Listen All
-                              </Button>
-                          )}
-                      </GlassCard>
-                  )}
-                  
-                  {/* Additional Filters for Non-Kana */}
-                  {(activeSection === 'vocab' || activeSection === 'kanji') && (
-                      <div className="flex flex-col md:flex-row gap-6 items-center flex-wrap mb-6">
-                          <div className="flex gap-2 bg-white/40 p-1 rounded-xl border border-bamboo/10">
-                              <button onClick={() => setLessonMode('lesson')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'lesson' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>Lesson Wise</button>
-                              <button onClick={() => setLessonMode('category')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'category' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>Category Wise</button>
-                          </div>
-                          <select 
-                              className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko focus:ring-2 focus:ring-hanko/10 transition-all font-medium" 
-                              value={lessonMode === 'lesson' ? selectedLesson : selectedCategory} 
-                              onChange={(e) => lessonMode === 'lesson' ? setSelectedLesson(Number(e.target.value)) : setSelectedCategory(e.target.value)}
-                          >
-                              {lessonMode === 'lesson' ? uniqueLessons.map(l => (
-                                  <option key={l} value={l} className={isComplete(`${activeSection}-lesson-${l}`) ? "bg-green-100 font-bold text-green-700" : ""}>
-                                      Lesson {l} {isComplete(`${activeSection}-lesson-${l}`) ? '✅' : ''}
-                                  </option>
-                              )) : (activeSection === 'vocab' ? uniqueVocabCats : uniqueKanjiCats).map(c => (
-                                  <option key={c} value={c} className={isComplete(`${activeSection}-cat-${c}`) ? "bg-green-100 font-bold text-green-700" : ""}>
-                                      {c} {isComplete(`${activeSection}-cat-${c}`) ? '✅' : ''}
-                                  </option>
-                              ))}
-                          </select>
-                      </div>
-                  )}
-
-                  {activeSection === 'grammar' && (
-                      <div className="flex items-center gap-4 mb-6">
-                          <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Select Lesson</span>
-                          <select 
-                              className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko transition-all font-medium" 
-                              value={selectedLesson} 
-                              onChange={(e) => setSelectedLesson(Number(e.target.value))}
-                          >
-                              {uniqueLessons.map(l => (
-                                  <option key={l} value={l} className={isComplete(`grammar-lesson-${l}`) ? "bg-green-100 font-bold text-green-700" : ""}>
-                                      Lesson {l} {isComplete(`grammar-lesson-${l}`) ? '✅' : ''}
-                                  </option>
-                              ))}
-                          </select>
-                      </div>
-                  )}
-
-                  <div className={`grid gap-4 ${activeSection === 'kana' ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-                      {currentContent.map((item) => (
-                          <GlassCard key={item.id} className="relative group hover:border-hanko/30 transition-all cursor-pointer overflow-hidden hover:-translate-y-1" onClick={() => speak(item.ja)}>
-                              
-                              {/* Pronunciation Guide Overlay for Kana */}
-                              {activeSection === 'kana' && (
-                                  <div className="absolute inset-0 bg-ink/90 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 backdrop-blur-[2px]">
-                                      <Volume2 className="text-straw mb-2 animate-bounce" size={24} />
-                                      <p className="text-white font-bold text-lg capitalize">{item.romaji}</p>
-                                      <p className="text-[10px] text-bamboo uppercase tracking-widest mt-1">Pronunciation</p>
-                                  </div>
-                              )}
-      
-                              <div className="absolute top-4 right-4 text-xs text-bamboo/60 uppercase tracking-widest font-bold border border-bamboo/10 px-2 py-0.5 rounded">{item.type.replace('_', ' ')}</div>
-                              
-                              {activeSection === 'formal_informal' ? (
-                                  <div className="flex gap-4">
-                                      <div className="flex-1 border-r border-bamboo/10 pr-4">
-                                          <div className="text-xs text-hanko uppercase font-bold mb-1"><Briefcase size={10} className="inline mr-1"/> Polite</div>
-                                          <div className="text-xl font-jp font-bold text-ink">{item.ja}</div>
-                                      </div>
-                                      <div className="flex-1 pl-1">
-                                          <div className="text-xs text-bamboo uppercase font-bold mb-1"><Coffee size={10} className="inline mr-1"/> Casual</div>
-                                          <div className="text-xl font-jp font-bold text-ink/80">{item.romaji}</div>
-                                      </div>
-                                  </div>
-                              ) : (
-                                  <>
-                                      <div className="text-3xl font-jp font-bold text-ink mb-2 relative z-10">{item.ja}</div>
-                                      <div className={`font-medium mb-3 relative z-10 ${activeSection === 'synonym' || activeSection === 'antonym' ? 'text-xl text-straw font-jp' : 'text-hanko'}`}>{item.romaji}</div>
-                                  </>
-                              )}
-                              
-                              <div className="pt-3 border-t border-bamboo/10 relative z-10">
-                                  <p className="text-ink/80">{item.en}</p>
-                                  {item.bn && <p className="text-xs text-bamboo mt-1">🇧🇩 {item.bn}</p>}
-                                  {item.usage && <p className="text-xs text-bamboo mt-2 bg-bamboo/5 p-2 rounded italic">Ex: {item.usage}</p>}
-                              </div>
-                          </GlassCard>
-                      ))}
-                      {currentContent.length === 0 && <div className="col-span-full text-center py-12 text-bamboo">No content found for this selection.</div>}
-                  </div>
+                  {currentContent.length === 0 && <div className="col-span-full text-center py-12 text-bamboo">No content found for this selection.</div>}
               </div>
           )}
   
-          {viewMode === 'listening_drill' && <ListeningDrillView items={currentContent} />}
           {viewMode === 'flashcard' && <FlashcardView items={currentContent} />}
           {viewMode === 'quiz' && <QuizView items={currentContent} difficulty={difficulty} onComplete={handleLessonComplete} />}
           {viewMode === 'particle' && <QuizView items={currentContent} difficulty={difficulty} customMode="particle" onComplete={handleLessonComplete} />}
           {viewMode === 'match' && <MemoryMatchGame items={currentContent} onExit={() => setViewMode('games')} />}
           {viewMode === 'typing' && <TypingMasterGame items={currentContent} onExit={() => setViewMode('games')} />}
-          {viewMode === 'kana_spotter' && <KanaSpotterGame items={activeSection === 'kana' ? currentContent : KANA_DATA} onExit={() => setViewMode('games')} />}
-          {viewMode === 'confusion' && <ConfusionKillerGame onExit={() => setViewMode('games')} />}
-          {viewMode === 'audio_reflex' && <AudioReflexGame items={currentContent} onExit={() => setViewMode('games')} />}
           {viewMode === 'builder' && <SentenceBuilderView items={currentContent} difficulty={difficulty} />}
           {viewMode === 'math' && <MathChallengeView difficulty={difficulty} />}
           {viewMode === 'matrix' && <MatrixSearchView items={currentContent} difficulty={difficulty} />}
           {viewMode === 'scramble' && <WordScrambleView items={currentContent} difficulty={difficulty} />}
           {viewMode === 'story' && <LessonStoryView items={currentContent} />}
           {viewMode === 'song' && <LessonSongView items={currentContent} />}
-          {viewMode === 'games' && <GameArcadeMenu onSelect={setViewMode} />}
+          {viewMode === 'games' && <GameArcade section={activeSection} onSelectGame={setViewMode} />}
       </div>
     );
 };

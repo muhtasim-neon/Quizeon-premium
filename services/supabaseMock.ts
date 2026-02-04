@@ -3,8 +3,8 @@ import { User, ContentAnalytics } from '../types';
 import { supabase } from './supabaseClient';
 
 // --- ADMIN AUTH BACKDOOR ONLY ---
-// Load password from LocalStorage if available, otherwise default to 'admin'
-let adminPassword = localStorage.getItem('quizeon_admin_pass') || 'admin';
+// Load password from LocalStorage if available, otherwise default to 'admin123'
+let adminPassword = localStorage.getItem('quizeon_admin_pass') || 'admin123';
 
 const ADMIN_CREDENTIALS = {
   username: 'admin',
