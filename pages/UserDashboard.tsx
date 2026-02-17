@@ -1,73 +1,146 @@
 
-import React from 'react';
-import { GlassCard, Button, Badge } from '../components/UI';
+// ... existing imports ...
+import React, { useEffect, useState } from 'react';
+import { Button, Badge, WonderCard, GlassCard } from '../components/UI';
 import { 
   Trophy, TrendingUp, Target, Zap, AlertCircle, 
   Gamepad2, CheckCircle2, Medal, Flame, 
-  Brain, Timer, GraduationCap, Keyboard
+  Brain, Timer, GraduationCap, Keyboard, RefreshCw,
+  Landmark, Activity, Wifi, Database, BookOpen
 } from 'lucide-react';
 import { User, SkillStats } from '../types';
+import { progressService } from '../services/progressService';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
   ResponsiveContainer, PieChart, Pie, Cell 
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
-// --- HELPERS ---
+// ... existing helpers and sub-components ...
 
 const getRank = (xp: number) => {
-  if (xp < 1000) return { title: 'Initiate', icon: '🌱', next: 1000, color: 'text-green-600', border: 'border-green-200', bg: 'bg-green-50' };
-  if (xp < 3000) return { title: 'Ronin', icon: '🗡️', next: 3000, color: 'text-ink', border: 'border-ink/20', bg: 'bg-ink/5' };
-  if (xp < 6000) return { title: 'Samurai', icon: '🎎', next: 6000, color: 'text-straw', border: 'border-straw', bg: 'bg-straw/10' };
-  if (xp < 10000) return { title: 'Shogun', icon: '🏯', next: 10000, color: 'text-hanko', border: 'border-hanko', bg: 'bg-hanko/10' };
-  return { title: 'Grand Master', icon: '👑', next: 20000, color: 'text-yellow-600', border: 'border-yellow-400', bg: 'bg-yellow-50' };
+  if (xp < 1000) return { title: 'Initiate', icon: '🌱', next: 1000, color: 'text-matcha', border: 'border-matcha/20', bg: 'bg-matcha/5' };
+  if (xp < 3000) return { title: 'Ronin', icon: '🗡️', next: 3000, color: 'text-indigo', border: 'border-indigo/20', bg: 'bg-indigo/5' };
+  if (xp < 6000) return { title: 'Samurai', icon: '🎎', next: 6000, color: 'text-vermilion', border: 'border-vermilion/20', bg: 'bg-vermilion/5' };
+  if (xp < 10000) return { title: 'Shogun', icon: '🏯', next: 10000, color: 'text-purple-600', border: 'border-purple-200', bg: 'bg-purple-50' };
+  return { title: 'Grand Master', icon: '👑', next: 20000, color: 'text-gold', border: 'border-gold', bg: 'bg-gold/10' };
+};
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30, scale: 0.95 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: { type: 'spring', stiffness: 120, damping: 14 }
+  }
 };
 
 // --- SUB-COMPONENTS ---
 
-const PowerMetrics = () => {
+const HeaderStat = ({ label, value, icon: Icon, color }: { label: string, value: string | number, icon: any, color: string }) => (
+    <div className="flex flex-col items-center px-4 border-r border-white/10 last:border-0">
+        <Icon size={16} className={`mb-1 ${color}`} />
+        <span className="text-xl font-black text-rice leading-none">{value}</span>
+        <span className="text-[9px] font-bold uppercase tracking-widest text-rice/50 mt-1">{label}</span>
+    </div>
+);
+
+const DailyTargetCard = ({ type, target, current, color, icon: Icon }: { type: string, target: number, current: number, color: string, icon: any }) => {
+    const percent = Math.min(100, (current / target) * 100);
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <GlassCard className="p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform border-purple-100 hover:border-purple-300">
-                <div className="absolute top-[-10px] right-[-10px] text-purple-50 group-hover:text-purple-100 transition-colors pointer-events-none">
-                    <Brain size={70} />
-                </div>
-                <div className="text-3xl font-black text-purple-600 mb-1 relative z-10">68%</div>
-                <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
-                    <Brain size={12} /> Mastery Score
-                </div>
-            </GlassCard>
+        <GlassCard className="flex items-center gap-4 relative overflow-hidden group">
+            <div className={`absolute right-[-10px] top-[-10px] opacity-10 group-hover:opacity-20 transition-opacity ${color}`}>
+                <Icon size={80} />
+            </div>
             
-            <GlassCard className="p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform border-yellow-100 hover:border-yellow-300">
-                 <div className="absolute top-[-10px] right-[-10px] text-yellow-50 group-hover:text-yellow-100 transition-colors pointer-events-none">
-                    <Zap size={70} />
+            {/* Circular Progress */}
+            <div className="relative w-16 h-16 flex-shrink-0">
+                <svg className="w-full h-full rotate-[-90deg]">
+                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100" />
+                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className={color} strokeDasharray={175} strokeDashoffset={175 - (175 * percent) / 100} strokeLinecap="round" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center font-black text-ink text-sm">
+                    {Math.round(percent)}%
                 </div>
-                <div className="text-3xl font-black text-yellow-600 mb-1 relative z-10">85%</div>
-                <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
-                    <Zap size={12} /> Avg Accuracy
-                </div>
-            </GlassCard>
+            </div>
 
-            <GlassCard className="p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform border-green-100 hover:border-green-300">
-                 <div className="absolute top-[-10px] right-[-10px] text-green-50 group-hover:text-green-100 transition-colors pointer-events-none">
-                    <Timer size={70} />
+            <div>
+                <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded bg-white border ${color.replace('text-', 'border-')}`}>{type}</span>
                 </div>
-                <div className="text-3xl font-black text-green-600 mb-1 relative z-10">1.2s</div>
-                <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
-                    <Timer size={12} /> Fastest Answer
+                <div className="text-2xl font-black text-ink">
+                    <span className={color}>{current}</span> <span className="text-bamboo/40 text-lg">/ {target}</span>
                 </div>
-            </GlassCard>
+                <div className="text-[10px] font-bold text-bamboo uppercase tracking-wide">Daily Goal</div>
+            </div>
+        </GlassCard>
+    );
+};
 
-            <GlassCard className="p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform border-hanko/10 hover:border-hanko/30">
-                 <div className="absolute top-[-10px] right-[-10px] text-red-50 group-hover:text-red-100 transition-colors pointer-events-none">
-                    <Target size={70} />
-                </div>
-                <div className="text-lg font-black text-hanko mb-1 mt-1 truncate w-full px-1 relative z-10">Memory Match</div>
-                <div className="text-[10px] text-bamboo font-bold uppercase tracking-widest flex items-center gap-1 relative z-10 bg-white/50 px-2 py-0.5 rounded-full">
-                    <Target size={12} /> Best Game
-                </div>
-            </GlassCard>
-        </div>
+const PowerMetrics = () => {
+    const [srsDue, setSrsDue] = useState(0);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const updateCount = () => setSrsDue(progressService.getSRSDueCount());
+        updateCount();
+        window.addEventListener('srs-update', updateCount);
+        return () => window.removeEventListener('srs-update', updateCount);
+    }, []);
+
+    return (
+        <motion.div variants={containerVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <motion.div variants={itemVariants}>
+                <GlassCard className="flex flex-col items-center justify-center text-center !p-4 bg-white/70">
+                    <div className="w-10 h-10 bg-indigo/10 rounded-xl flex items-center justify-center mb-2 text-indigo">
+                        <Brain size={20} />
+                    </div>
+                    <div className="text-2xl font-bold text-ink mb-0.5">68%</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-ink/40">Mastery</div>
+                </GlassCard>
+            </motion.div>
+            
+            <motion.div variants={itemVariants}>
+                <GlassCard className="flex flex-col items-center justify-center text-center !p-4 bg-white/70">
+                    <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center mb-2 text-yellow-700">
+                        <Zap size={20} />
+                    </div>
+                    <div className="text-2xl font-bold text-ink mb-0.5">85%</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-ink/40">Accuracy</div>
+                </GlassCard>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+                <GlassCard className="flex flex-col items-center justify-center text-center !p-4 bg-white/70">
+                    <div className="w-10 h-10 bg-matcha/10 rounded-xl flex items-center justify-center mb-2 text-matcha">
+                        <Timer size={20} />
+                    </div>
+                    <div className="text-2xl font-bold text-ink mb-0.5">1.2s</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-ink/40">Speed</div>
+                </GlassCard>
+            </motion.div>
+
+            <motion.div variants={itemVariants} onClick={() => navigate('/learning')} className="cursor-pointer hover:scale-105 transition-transform">
+                <GlassCard className="flex flex-col items-center justify-center text-center !p-4 border-vermilion/20 bg-vermilion/5">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mb-2 text-vermilion relative shadow-sm">
+                        <RefreshCw size={20} className={srsDue > 0 ? "animate-spin-slow" : ""} />
+                        {srsDue > 0 && <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-vermilion rounded-full border-2 border-white"></span>}
+                    </div>
+                    <div className="text-2xl font-bold text-ink mb-0.5">{srsDue}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-vermilion">Reviews</div>
+                </GlassCard>
+            </motion.div>
+        </motion.div>
     );
 };
 
@@ -77,18 +150,18 @@ const ExamReadinessCard = () => {
         { name: 'Ready', value: readiness },
         { name: 'Not Ready', value: 100 - readiness }
     ];
-    const COLORS = ['#c93a40', '#e0e0e0']; 
+    const COLORS = ['#1F3A5F', '#E4DAC7']; // Indigo & Linen
 
     return (
-        <GlassCard className="flex flex-col justify-between h-full relative overflow-hidden">
-            <div className="flex justify-between items-start mb-2 relative z-10">
+        <WonderCard colorClass="bg-white border-indigo/10" className="flex flex-col justify-between h-full">
+            <div className="flex justify-between items-start mb-2">
                 <div>
-                    <h3 className="font-bold text-ink text-lg flex items-center gap-2">
-                        <GraduationCap size={20} className="text-hanko" /> Exam Readiness
+                    <h3 className="font-bold text-lg flex items-center gap-2 text-ink">
+                        <GraduationCap size={18} className="text-indigo" /> Exam Prep
                     </h3>
-                    <p className="text-xs text-bamboo font-medium">JLPT N5 Prediction</p>
+                    <p className="text-xs font-medium text-ink/50">JLPT N5 Prediction</p>
                 </div>
-                <Badge color="bg-hanko/10 text-hanko border-hanko/20">N5</Badge>
+                <Badge color="bg-indigo/5 text-indigo border-indigo/10">N5</Badge>
             </div>
             
             <div className="flex items-center gap-4 mt-2">
@@ -112,102 +185,72 @@ const ExamReadinessCard = () => {
                             </Pie>
                         </PieChart>
                     </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center font-bold text-ink text-lg">
+                    <div className="absolute inset-0 flex items-center justify-center font-bold text-xl text-ink">
                         {readiness}%
                     </div>
                 </div>
-                <div className="flex-1 space-y-2">
-                    <div className="text-sm text-bamboo leading-tight">
-                        You are on track! Focus on <span className="font-bold text-ink">Particles</span> to reach 80%.
+                <div className="flex-1 space-y-3">
+                    <div className="text-sm leading-tight text-ink/70">
+                        You're almost there! Review <span className="font-bold text-indigo">Particles</span>.
                     </div>
-                    <Button size="sm" variant="outline" className="w-full h-8 text-xs">
-                        Take Mock Exam
-                    </Button>
+                    <button className="w-full py-2 rounded-lg bg-indigo text-washi text-xs font-bold shadow-md hover:bg-indigo/90 transition-colors">
+                        Mock Exam
+                    </button>
                 </div>
             </div>
-        </GlassCard>
-    );
-};
-
-const TodayGoalCard = () => {
-    const goals = [
-        { id: 1, text: "Complete 1 Grammar Lesson", done: true },
-        { id: 2, text: "Score 100% on Vocab Quiz", done: false },
-        { id: 3, text: "Play 'Memory Match' once", done: false },
-    ];
-
-    return (
-        <GlassCard className="h-full flex flex-col">
-            <h3 className="font-bold text-ink text-lg flex items-center gap-2 mb-4">
-                <Target size={20} className="text-straw" /> Today's Goal
-            </h3>
-            <div className="space-y-3 flex-1">
-                {goals.map((goal) => (
-                    <div key={goal.id} className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${goal.done ? 'bg-green-50 border-green-200' : 'bg-white/40 border-bamboo/10'}`}>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${goal.done ? 'bg-green-500 border-green-500 text-white' : 'border-bamboo/30'}`}>
-                            {goal.done && <CheckCircle2 size={12} />}
-                        </div>
-                        <span className={`text-sm font-medium ${goal.done ? 'text-green-800 line-through opacity-70' : 'text-ink'}`}>
-                            {goal.text}
-                        </span>
-                    </div>
-                ))}
-            </div>
-        </GlassCard>
+        </WonderCard>
     );
 };
 
 const WeakAreaCard = () => {
     return (
-        <GlassCard className="bg-red-50/50 border-hanko/20 flex flex-col h-full relative overflow-hidden group cursor-pointer hover:border-hanko/40 transition-colors">
-            <div className="absolute right-[-10px] top-[-10px] text-hanko/10 group-hover:scale-110 transition-transform">
-                <AlertCircle size={80} />
+        <WonderCard colorClass="bg-gradient-to-br from-vermilion/5 to-white border-vermilion/20" className="flex flex-col h-full group cursor-pointer hover:shadow-lg transition-all">
+            <div className="absolute right-[-20px] top-[-20px] text-vermilion/10 group-hover:rotate-12 transition-transform">
+                <AlertCircle size={100} />
             </div>
-            <h3 className="font-bold text-hanko text-lg flex items-center gap-2 mb-2 relative z-10">
-                <AlertCircle size={20} /> Weak Area Detected
+            <h3 className="font-bold text-lg flex items-center gap-2 mb-2 relative z-10 text-ink">
+                <AlertCircle size={18} className="text-vermilion" /> Needs Focus
             </h3>
-            <div className="flex-1 relative z-10">
-                <div className="text-3xl font-bold text-ink mb-1">Particles (は vs が)</div>
-                <div className="text-xs font-bold text-red-600 bg-red-100 inline-block px-2 py-0.5 rounded mb-3">Accuracy: 42%</div>
-                <p className="text-sm text-bamboo leading-relaxed">
-                    You often confuse the topic marker and subject marker. 
+            <div className="flex-1 relative z-10 flex flex-col justify-center">
+                <div className="text-2xl font-serif font-black mb-2 text-ink">Particles (は vs が)</div>
+                <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-bold bg-white px-2 py-1 rounded-md shadow-sm border border-vermilion/20 text-vermilion">Accuracy: 42%</span>
+                </div>
+                <p className="text-sm text-ink/60 leading-relaxed mb-4">
+                    Confusing topic and subject markers.
                 </p>
+                <button className="w-full py-2.5 rounded-xl bg-vermilion text-white text-sm font-bold shadow-md hover:bg-vermilion/90 transition-colors">
+                    Practice Now
+                </button>
             </div>
-            <div className="mt-4 relative z-10">
-                <Button size="sm" variant="danger" className="w-full">
-                    <Zap size={14} className="mr-1" /> Practice Now
-                </Button>
-            </div>
-        </GlassCard>
+        </WonderCard>
     );
 };
 
 const AchievementsCard = () => {
     const badges = [
         { id: 1, icon: "🌱", name: "First Step", unlocked: true },
-        { id: 2, icon: "🔥", name: "7 Day Streak", unlocked: true },
-        { id: 3, icon: "📚", name: "Vocab Master", unlocked: false },
-        { id: 4, icon: "⚡", name: "Quiz Whiz", unlocked: true },
-        { id: 5, icon: "🎧", name: "Good Ear", unlocked: false },
-        { id: 6, icon: "🗣️", name: "Speaker", unlocked: false },
+        { id: 2, icon: "🔥", name: "7 Days", unlocked: true },
+        { id: 3, icon: "📚", name: "Vocab", unlocked: false },
+        { id: 4, icon: "⚡", name: "Whiz", unlocked: true },
+        { id: 5, icon: "🎧", name: "Ear", unlocked: false },
+        { id: 6, icon: "🗣️", name: "Speak", unlocked: false },
     ];
 
     return (
-        <GlassCard>
-            <h3 className="font-bold text-ink text-lg flex items-center gap-2 mb-4">
-                <Medal size={20} className="text-yellow-600" /> Achievements
+        <WonderCard colorClass="bg-white border-sakura/30" className="h-full">
+            <h3 className="font-bold text-lg flex items-center gap-2 mb-4 text-ink">
+                <Medal size={18} className="text-sakura" /> Badges
             </h3>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-3 gap-3">
                 {badges.map(b => (
-                    <div key={b.id} className={`flex flex-col items-center gap-2 p-2 rounded-xl transition-all ${b.unlocked ? 'opacity-100' : 'opacity-40 grayscale'}`}>
-                        <div className={`w-12 h-12 flex items-center justify-center text-2xl bg-white rounded-full border shadow-sm ${b.unlocked ? 'border-yellow-200' : 'border-gray-200'}`}>
-                            {b.icon}
-                        </div>
-                        <span className="text-[10px] font-bold text-center text-bamboo uppercase tracking-tight">{b.name}</span>
+                    <div key={b.id} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${b.unlocked ? 'bg-sakura/10 border border-sakura/20' : 'bg-linen/20 opacity-40 grayscale'}`}>
+                        <div className="text-xl mb-1">{b.icon}</div>
+                        <span className="text-[10px] font-bold text-center uppercase leading-none text-ink/70">{b.name}</span>
                     </div>
                 ))}
             </div>
-        </GlassCard>
+        </WonderCard>
     );
 };
 
@@ -221,21 +264,46 @@ const ProgressRadar = () => {
     ];
 
     return (
-        <GlassCard className="h-full flex flex-col">
-            <h3 className="font-bold text-ink text-lg flex items-center gap-2 mb-2">
-                <TrendingUp size={20} className="text-blue-600" /> Progress Overview
+        <WonderCard colorClass="bg-white border-linen" className="h-full flex flex-col">
+            <h3 className="font-bold text-lg flex items-center gap-2 mb-2 text-ink">
+                <TrendingUp size={18} className="text-indigo" /> Skill Radar
             </h3>
             <div className="w-full h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                        <PolarGrid stroke="#8d6e63" strokeOpacity={0.2} />
-                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#8d6e63', fontSize: 10, fontWeight: 'bold' }} />
+                        <PolarGrid stroke="#E4DAC7" />
+                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#7D756C', fontSize: 10, fontWeight: 'bold' }} />
                         <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                        <Radar name="My Skills" dataKey="A" stroke="#bc2f32" fill="#bc2f32" fillOpacity={0.4} />
+                        <Radar name="My Skills" dataKey="A" stroke="#1F3A5F" fill="#1F3A5F" fillOpacity={0.2} />
                     </RadarChart>
                 </ResponsiveContainer>
             </div>
-        </GlassCard>
+        </WonderCard>
+    );
+};
+
+const GameCard = () => {
+    const navigate = useNavigate();
+    return (
+        <WonderCard colorClass="bg-white border-purple-200" className="h-full flex flex-col">
+            <h3 className="font-bold text-lg flex items-center gap-2 mb-4 text-ink">
+                <Gamepad2 size={18} className="text-purple-600" /> Arcade
+            </h3>
+            <div className="flex-1 grid grid-cols-2 gap-3">
+                <div onClick={() => navigate('/games')} className="bg-rice/50 rounded-xl p-3 text-center cursor-pointer hover:bg-purple-50 transition-colors border border-linen hover:border-purple-200 flex flex-col items-center justify-center gap-2">
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                        <Timer size={16} />
+                    </div>
+                    <span className="text-xs font-bold uppercase text-ink/70">Match</span>
+                </div>
+                <div onClick={() => navigate('/games')} className="bg-rice/50 rounded-xl p-3 text-center cursor-pointer hover:bg-purple-50 transition-colors border border-linen hover:border-purple-200 flex flex-col items-center justify-center gap-2">
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                        <Keyboard size={16} />
+                    </div>
+                    <span className="text-xs font-bold uppercase text-ink/70">Typing</span>
+                </div>
+            </div>
+        </WonderCard>
     );
 };
 
@@ -243,97 +311,108 @@ export const UserDashboard: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
   const rank = getRank(user.xp || 0);
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Ohayou' : hour < 18 ? 'Konnichiwa' : 'Konbanwa';
+  const greetingJA = hour < 12 ? 'おはよう' : hour < 18 ? 'こんにちは' : 'こんばんは';
+  const greetingEN = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row items-center gap-6 bg-white/60 backdrop-blur-md p-6 rounded-3xl border border-white shadow-lg relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-hanko/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-          <div className="flex items-center gap-6 z-10 w-full md:w-auto">
-              <div className="relative">
-                  <img src={user.avatar} alt="User" className="w-20 h-20 rounded-full border-4 border-white shadow-md bg-rice object-cover" />
-                  <div className="absolute bottom-0 right-0 bg-white p-1 rounded-full shadow-sm">
-                      <div className="bg-green-500 w-3 h-3 rounded-full border-2 border-white"></div>
+    <motion.div 
+        className="max-w-7xl mx-auto space-y-8 animate-fade-in"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+    >
+      {/* --- SS-Style Header --- */}
+      <motion.div variants={itemVariants}>
+          <div className="bg-ink rounded-[32px] p-4 lg:p-6 flex flex-col lg:flex-row justify-between items-center relative overflow-hidden shadow-2xl shadow-ink/20 border-2 border-bamboo/20">
+              {/* Texture Overlay */}
+              <div className="absolute inset-0 washi-texture opacity-10 pointer-events-none"></div>
+              <div className="absolute -right-20 -top-20 w-64 h-64 bg-hanko/20 rounded-full blur-3xl"></div>
+
+              {/* Left: Identity */}
+              <div className="flex items-center gap-6 z-10 w-full lg:w-auto mb-6 lg:mb-0">
+                  <div className="w-20 h-20 bg-hanko rounded-3xl flex items-center justify-center text-white shadow-lg shadow-hanko/30 border-t border-white/20 shrink-0">
+                      <Landmark size={40} />
+                  </div>
+                  <div>
+                      <h1 className="text-4xl md:text-5xl font-black text-rice font-jp tracking-tight mb-1">
+                          {greetingJA}, {user.username}
+                      </h1>
+                      <p className="text-bamboo font-bold text-xs uppercase tracking-[0.2em]">
+                          {greetingEN}
+                      </p>
                   </div>
               </div>
-              <div>
-                  <h1 className="text-3xl font-bold text-ink font-serif mb-1">
-                      {greeting}, <span className="text-hanko">{user.username}</span>
-                  </h1>
-                  <div className="flex gap-2">
-                      <Badge color={`${rank.bg} ${rank.color} ${rank.border} border`}>
-                          {rank.icon} {rank.title}
-                      </Badge>
-                      <Badge color="bg-rice text-bamboo border-bamboo/20">
-                          Level {Math.floor((user.xp || 0) / 1000) + 1}
-                      </Badge>
-                  </div>
+
+              {/* Right: Stats Capsule */}
+              <div className="flex bg-[#2d1b18] rounded-2xl p-2 z-10 border border-white/5 w-full lg:w-auto justify-between lg:justify-end overflow-x-auto">
+                  <HeaderStat label="Points" value={user.xp || 0} icon={Zap} color="text-yellow-500" />
+                  <HeaderStat label="Streak" value={user.streak || 0} icon={Flame} color="text-hanko" />
+                  <HeaderStat label="Rank" value={rank.title} icon={Medal} color="text-emerald-400" />
+                  <HeaderStat label="Sync" value="44m" icon={Wifi} color="text-blue-400" />
+                  <HeaderStat label="Load" value="0" icon={Activity} color="text-purple-400" />
               </div>
           </div>
+      </motion.div>
 
-          <div className="flex-1 w-full z-10 px-0 md:px-8">
-              <div className="flex justify-between text-xs font-bold text-bamboo mb-2 uppercase tracking-widest">
-                  <span>Current XP: {user.xp}</span>
-                  <span>Next Rank: {rank.next}</span>
-              </div>
-              <div className="h-4 bg-white border border-bamboo/10 rounded-full overflow-hidden shadow-inner">
-                  <div 
-                      className="h-full bg-gradient-to-r from-straw to-yellow-500 relative" 
-                      style={{ width: `${Math.min(100, ((user.xp || 0) / rank.next) * 100)}%` }}
-                  >
-                      <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                  </div>
-              </div>
-          </div>
+      {/* --- Daily Targets Section (New) --- */}
+      <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div variants={itemVariants}>
+              <DailyTargetCard 
+                  type="Vocab" 
+                  target={10} 
+                  current={Math.min(10, Math.floor((user.xp || 0) / 100))} // Simulated progress based on XP
+                  color="text-indigo-600" 
+                  icon={Database} 
+              />
+          </motion.div>
+          <motion.div variants={itemVariants}>
+              <DailyTargetCard 
+                  type="Kanji" 
+                  target={5} 
+                  current={Math.min(5, Math.floor((user.xp || 0) / 300))} // Simulated progress
+                  color="text-hanko" 
+                  icon={Landmark} 
+              />
+          </motion.div>
+          <motion.div variants={itemVariants}>
+              <DailyTargetCard 
+                  type="Grammar" 
+                  target={1} 
+                  current={Math.min(1, Math.floor((user.xp || 0) / 500))} // Simulated progress
+                  color="text-emerald-600" 
+                  icon={BookOpen} // Fallback to BookOpen if Grammar icon not ideal
+              />
+          </motion.div>
+      </motion.div>
 
-          <div className="flex flex-col items-center justify-center p-3 bg-white/50 rounded-2xl border border-bamboo/10 min-w-[80px]">
-              <Flame size={24} className="text-hanko mb-1" />
-              <span className="text-xl font-bold text-ink">{user.streak || 0}</span>
-              <span className="text-[10px] text-bamboo font-bold uppercase">Days</span>
-          </div>
-      </div>
+      <div className="h-px w-full bg-bamboo/10 my-4"></div>
 
+      {/* Functional Metrics */}
       <PowerMetrics />
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <div className="md:col-span-4 h-64">
-              <TodayGoalCard />
-          </div>
+      {/* Main Widgets Grid */}
+      <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          <motion.div variants={itemVariants} className="md:col-span-4 h-64">
+              <GameCard />
+          </motion.div>
 
-          <div className="md:col-span-4 h-64">
-              <GlassCard className="h-full flex flex-col">
-                  <h3 className="font-bold text-ink text-lg flex items-center gap-2 mb-4">
-                      <Gamepad2 size={20} className="text-purple-600" /> Today's Games
-                  </h3>
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                      <div onClick={() => navigate('/learning')} className="bg-rice/50 rounded-xl p-2 text-center cursor-pointer hover:bg-white transition-colors border border-bamboo/5">
-                        <Timer className="mx-auto mb-1 text-purple-500" size={20} />
-                        <span className="text-[10px] font-bold uppercase">Match</span>
-                      </div>
-                      <div onClick={() => navigate('/learning')} className="bg-rice/50 rounded-xl p-2 text-center cursor-pointer hover:bg-white transition-colors border border-bamboo/5">
-                        <Keyboard className="mx-auto mb-1 text-blue-500" size={20} />
-                        <span className="text-[10px] font-bold uppercase">Typing</span>
-                      </div>
-                  </div>
-              </GlassCard>
-          </div>
-
-          <div className="md:col-span-4 h-64">
+          <motion.div variants={itemVariants} className="md:col-span-4 h-64">
               <ExamReadinessCard />
-          </div>
+          </motion.div>
 
-          <div className="md:col-span-4 h-72">
-              <ProgressRadar />
-          </div>
-
-          <div className="md:col-span-4 h-72">
-              <WeakAreaCard />
-          </div>
-
-          <div className="md:col-span-4 h-72">
+          <motion.div variants={itemVariants} className="md:col-span-4 h-64">
+              {/* Replaced TodayGoalCard with AchievementsCard here to balance layout since Goals are now at top */}
               <AchievementsCard />
-          </div>
-      </div>
-    </div>
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="md:col-span-6 h-72">
+              <ProgressRadar />
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="md:col-span-6 h-72">
+              <WeakAreaCard />
+          </motion.div>
+      </motion.div>
+    </motion.div>
   );
 };

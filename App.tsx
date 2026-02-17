@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -12,148 +12,118 @@ import { LearningHub } from './pages/LearningHub';
 import { Mistakes } from './pages/Mistakes';
 import { Documents } from './pages/Documents';
 import { Profile } from './pages/Profile';
-import { Roadmap } from './pages/Roadmap';
+import { Checklist } from './pages/Roadmap';
 import { SenseiDojo } from './pages/SenseiDojo';
 import { ReadingRoom } from './pages/ReadingRoom';
 import { Subscription } from './pages/Subscription';
-import { authService } from './services/supabaseMock';
-import { supabase } from './services/supabaseClient';
+import { Games } from './pages/Games';
+import { SRSStatus } from './pages/SRSStatus';
 import { User } from './types';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { authService } from './services/supabaseMock';
+import { Loader2 } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Check for authenticated user on mount or create guest
   useEffect(() => {
-    const initAuth = async () => {
-        // 1. Check for Mock Session (LocalStorage)
-        const mockUser = authService.getCurrentUser();
-        if (mockUser) {
-            setUser(mockUser);
-            setLoading(false);
-            return;
-        }
-
-        // 2. Check for Supabase Session
-        if (supabase) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const newUser: User = {
-                    id: session.user.id,
-                    username: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
-                    role: 'student',
-                    avatar: session.user.user_metadata.avatar_url,
-                    email: session.user.email,
-                    xp: 0,
-                    streak: 0,
-                    subscription: 'free' // Default for Supabase logins
-                };
-                setUser(newUser);
-            }
-
-            // Listen for changes
-            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-                // Prevent auto-login flash during signup flow
-                if (sessionStorage.getItem('quizeon_signup_lock') === 'true') {
-                    return;
-                }
-
-                if (session?.user) {
-                    const newUser: User = {
-                        id: session.user.id,
-                        username: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
-                        role: 'student',
-                        avatar: session.user.user_metadata.avatar_url,
-                        email: session.user.email,
-                        xp: 0,
-                        streak: 0,
-                        subscription: 'free'
-                    };
-                    setUser(newUser);
-                } else {
-                    // Only clear if not using mock user (to avoid conflict during logout)
-                    if (!authService.getCurrentUser()) {
-                        setUser(null);
-                    }
-                }
-            });
-            
-            setLoading(false);
-            return () => subscription.unsubscribe();
-        } else {
-            setLoading(false);
-        }
+    const checkAuth = async () => {
+      const stored = authService.getCurrentUser();
+      if (stored) {
+        setUser(stored);
+      } else {
+        // No Login System: Auto-create guest user
+        const guestUser: User = {
+            id: 'guest-' + Math.random().toString(36).substr(2, 9),
+            username: 'WonderStudent',
+            role: 'student',
+            avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Wonder',
+            streak: 1,
+            xp: 100,
+            email: 'student@wonderkids.app',
+            subscription: 'free',
+            joinedDate: new Date().toISOString(),
+            lastActive: new Date().toISOString()
+        };
+        setUser(guestUser);
+        localStorage.setItem('quizeon_user', JSON.stringify(guestUser));
+      }
+      setLoading(false);
     };
-
-    initAuth();
+    checkAuth();
   }, []);
 
-  const handleLogout = async () => {
-    // Sign out from both
-    authService.signOut();
-    if (supabase) await supabase.auth.signOut();
-    setUser(null);
+  // Listen for XP/Profile updates
+  useEffect(() => {
+    const handleUserUpdate = () => {
+        const stored = authService.getCurrentUser();
+        if (stored) {
+            setUser({ ...stored });
+        }
+    };
+    window.addEventListener('user-update', handleUserUpdate);
+    return () => window.removeEventListener('user-update', handleUserUpdate);
+  }, []);
+
+  const handleUpdateUser = (updated: User) => {
+      setUser(updated);
+      localStorage.setItem('quizeon_user', JSON.stringify(updated));
   };
 
-  if (loading) return <div className="min-h-screen bg-rice flex items-center justify-center text-ink">Loading...</div>;
+  const handleLogout = () => {
+      authService.signOut();
+      // Instead of forcing login, just reload which will create a new guest
+      window.location.reload();
+  };
+
+  if (loading) {
+      return (
+          <div className="flex h-screen items-center justify-center bg-rice">
+              <Loader2 className="animate-spin text-hanko" size={48} />
+          </div>
+      );
+  }
+
+  // Fallback if something goes wrong with guest creation
+  if (!user) return null;
 
   return (
     <SettingsProvider>
         <Router>
-        <Routes>
-            <Route 
-            path="/login" 
-            element={!user ? <Login onLogin={setUser} /> : <Navigate to={user.role === 'admin' ? "/admin" : "/dashboard"} />} 
-            />
-            
-            {/* Protected Admin Routes */}
-            <Route 
-            path="/admin/*" 
-            element={
-                user && user.role === 'admin' ? (
-                <Layout user={user} onLogout={handleLogout}>
-                    <Routes>
-                    <Route path="/" element={<AdminDashboard />} />
-                    <Route path="/users" element={<AdminUsers />} />
-                    <Route path="/content" element={<AdminContent />} />
-                    <Route path="/settings" element={<AdminSettings />} />
-                    <Route path="*" element={<Navigate to="/admin" />} />
-                    </Routes>
-                </Layout>
-                ) : (
-                <Navigate to="/login" />
-                )
-            } 
-            />
+            <Layout user={user} onLogout={handleLogout}>
+                <Routes>
+                    {/* Admin Routes */}
+                    {user.role === 'admin' && (
+                        <>
+                            <Route path="/admin" element={<AdminDashboard />} />
+                            <Route path="/admin/users" element={<AdminUsers />} />
+                            <Route path="/admin/content" element={<AdminContent />} />
+                            <Route path="/admin/settings" element={<AdminSettings />} />
+                        </>
+                    )}
 
-            {/* Protected User Routes */}
-            <Route 
-            path="/*" 
-            element={
-                user ? (
-                user.role === 'admin' ? <Navigate to="/admin" /> : (
-                    <Layout user={user} onLogout={handleLogout}>
-                    <Routes>
-                        <Route path="/dashboard" element={<UserDashboard user={user} />} />
-                        <Route path="/roadmap" element={<Roadmap />} />
-                        <Route path="/learning" element={<LearningHub />} />
-                        <Route path="/sensei" element={<SenseiDojo />} />
-                        <Route path="/reading" element={<ReadingRoom />} />
-                        <Route path="/mistakes" element={<Mistakes />} />
-                        <Route path="/documents" element={<Documents />} />
-                        <Route path="/profile" element={<Profile user={user} onUpdate={setUser} />} />
-                        <Route path="/subscription" element={<Subscription />} />
-                        <Route path="*" element={<Navigate to="/dashboard" />} />
-                    </Routes>
-                    </Layout>
-                )
-                ) : (
-                <Navigate to="/login" />
-                )
-            } 
-            />
-        </Routes>
+                    {/* User Routes */}
+                    <Route path="/dashboard" element={<UserDashboard user={user} />} />
+                    <Route path="/checklist" element={<Checklist />} />
+                    <Route path="/learning" element={<LearningHub />} />
+                    <Route path="/games" element={<Games />} />
+                    <Route path="/sensei" element={<SenseiDojo />} />
+                    <Route path="/reading" element={<ReadingRoom />} />
+                    <Route path="/mistakes" element={<Mistakes />} />
+                    <Route path="/documents" element={<Documents />} />
+                    <Route path="/srs-status" element={<SRSStatus />} />
+                    <Route path="/profile" element={<Profile user={user} onUpdate={handleUpdateUser} />} />
+                    <Route path="/subscription" element={<Subscription />} />
+                    
+                    {/* Explicit Login Route for admin backdoor if needed, though Profile toggle exists */}
+                    <Route path="/login" element={<Login onLogin={setUser} />} />
+
+                    {/* Default Redirect */}
+                    <Route path="*" element={<Navigate to={user.role === 'admin' ? "/admin" : "/dashboard"} replace />} />
+                </Routes>
+            </Layout>
         </Router>
     </SettingsProvider>
   );

@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useLocation, Link } from 'react-router-dom';
+import { ChevronRight, Home } from 'lucide-react';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -11,59 +13,75 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   hoverEffect?: boolean;
 }
 
+// Standard Card
 export const GlassCard: React.FC<GlassCardProps> = ({ className, children, hoverEffect = false, ...props }) => {
   return (
     <div 
       className={cn(
-        "glass-effect rounded-2xl p-6 transition-all duration-500 ease-out text-ink relative overflow-hidden border border-white/40", 
-        // 3D Hover Effect - Enhanced Shadow and Lift
-        hoverEffect && "hover:-translate-y-2 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)] hover:shadow-hanko/5 cursor-pointer hover:border-white/80 active:scale-[0.98] active:shadow-sm",
+        "bg-white rounded-[32px] p-6 transition-all duration-300 ease-out text-ink relative overflow-hidden border-2 border-transparent",
+        "shadow-[0_10px_40px_-10px_rgba(62,39,35,0.05)]", 
+        hoverEffect && "hover:-translate-y-2 hover:shadow-[0_20px_40px_-12px_rgba(141,110,99,0.2)] hover:border-wood/30 cursor-pointer active:scale-[0.98]",
         className
       )} 
       {...props}
     >
-      {/* Glossy sheen effect on hover */}
-      {hoverEffect && (
-        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 hover:opacity-100 transition-opacity duration-700 pointer-events-none" style={{ backgroundSize: '200% 200%' }} />
-      )}
       {children}
     </div>
   );
 };
 
+interface WonderCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  colorClass?: string;
+}
+
+// Wonder Card - Updated to use Washi texture
+export const WonderCard: React.FC<WonderCardProps> = ({ children, colorClass = "bg-white border-bamboo/10", className = '', onClick, ...props }) => (
+  <div 
+    onClick={onClick} 
+    className={cn(
+      `p-6 rounded-[32px] border-b-4 transition-all duration-300 relative overflow-hidden ${colorClass}`,
+      onClick && "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]",
+      className
+    )}
+    {...props}
+  >
+    <div className="absolute inset-0 washi-texture opacity-30"></div>
+    <div className="relative z-10 h-full">{children}</div>
+  </div>
+);
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
   size?: 'sm' | 'md' | 'lg';
+  magnetic?: boolean; 
 }
 
-export const Button: React.FC<ButtonProps> = ({ className, variant = 'primary', size = 'md', children, ...props }) => {
+export const Button: React.FC<ButtonProps> = ({ className, variant = 'primary', size = 'md', magnetic, children, ...props }) => {
+  
+  // Strict Palette:
+  // Primary -> Wood (#8d6e63)
+  // Secondary -> White/Paper with Bamboo Border
+  // Danger -> Hanko (#bc2f32)
+  
   const variants = {
-    // Primary: Hanko Red - 3D Pressed Look
-    primary: "bg-hanko text-white shadow-lg shadow-hanko/30 hover:bg-red-700 hover:shadow-xl hover:shadow-hanko/40 active:translate-y-0.5 active:shadow-sm border border-white/10",
-    
-    // Secondary: Clean Glass
-    secondary: "bg-white/80 border border-bamboo/20 text-ink hover:bg-white hover:border-bamboo/40 shadow-sm hover:shadow-md active:translate-y-0.5 backdrop-blur-sm",
-    
-    // Ghost: Text Only
-    ghost: "bg-transparent text-bamboo hover:text-ink hover:bg-black/5 active:bg-black/10",
-    
-    // Danger: Soft Red
-    danger: "bg-red-50 text-hanko border border-red-200 hover:bg-red-100 hover:border-red-300 shadow-sm",
-    
-    // Outline: Stroked
-    outline: "bg-transparent border-2 border-bamboo/30 text-bamboo hover:border-bamboo hover:text-ink"
+    primary: "bg-[#8d6e63] text-white border-b-4 border-[#5D4037] active:border-b-0 active:translate-y-1 hover:bg-[#a1887f]",
+    secondary: "bg-white text-[#3e2723] border-2 border-b-4 border-[#795548]/30 active:border-b-2 active:translate-y-[2px] hover:border-[#8d6e63]/50",
+    ghost: "bg-transparent text-[#795548] hover:bg-[#fdfaf1] hover:text-[#8d6e63] transition-colors border-0",
+    danger: "bg-[#bc2f32] text-white border-b-4 border-[#8B0000] active:border-b-0 active:translate-y-1 hover:bg-[#d32f2f]",
+    outline: "bg-transparent border-2 border-[#795548]/30 text-[#795548] hover:border-[#8d6e63] hover:text-[#8d6e63]"
   };
 
   const sizes = {
-    sm: "px-3 py-1.5 text-xs font-bold tracking-wide rounded-lg",
-    md: "px-6 py-3 text-sm font-bold tracking-wide rounded-xl",
-    lg: "px-8 py-4 text-base font-bold tracking-wide rounded-2xl"
+    sm: "px-4 py-2 text-xs font-bold rounded-xl",
+    md: "px-6 py-3 text-sm font-bold rounded-2xl",
+    lg: "px-8 py-4 text-base font-bold rounded-2xl"
   };
 
   return (
     <button 
       className={cn(
-        "transition-all duration-200 flex items-center justify-center gap-2 font-jp select-none transform relative overflow-hidden",
+        "flex items-center justify-center gap-2 font-sans select-none transition-all duration-100",
+        "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0 disabled:active:border-b-4",
         variants[variant],
         sizes[size],
         className
@@ -83,29 +101,58 @@ export const Input: React.FC<InputProps> = ({ className, label, id, ...props }) 
   return (
     <div className="w-full group">
       {label && (
-        <label htmlFor={id} className="block text-xs font-bold uppercase tracking-widest text-bamboo mb-2 ml-1 group-focus-within:text-hanko transition-colors">
+        <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-bamboo mb-2 ml-1">
           {label}
         </label>
       )}
-      <div className="relative">
-        <input 
-          id={id}
-          className={cn(
-            "w-full bg-white/50 backdrop-blur-sm border border-bamboo/20 rounded-xl px-4 py-3.5",
-            "text-ink placeholder-bamboo/40 font-medium shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]",
-            "focus:border-hanko focus:ring-4 focus:ring-hanko/10 focus:bg-white outline-none transition-all duration-300",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-            className
-          )}
-          {...props}
-        />
-      </div>
+      <input 
+        id={id}
+        className={cn(
+          "w-full bg-[#fdfaf1] border-2 border-[#d4a373]/20 rounded-2xl px-5 py-4",
+          "text-ink font-bold placeholder-bamboo/40",
+          "focus:border-[#8d6e63] focus:bg-white outline-none transition-all duration-300",
+          "disabled:opacity-50 disabled:cursor-not-allowed",
+          className
+        )}
+        {...props}
+      />
     </div>
   );
 };
 
-export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = "bg-white/50 text-bamboo border-bamboo/20" }) => (
-  <span className={cn("px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border shadow-sm backdrop-blur-sm", color)}>
+export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = "bg-[#fdfaf1] text-[#8d6e63] border border-[#8d6e63]/20" }) => (
+  <span className={cn("px-3 py-1 rounded-lg text-[11px] font-extrabold uppercase tracking-wide", color)}>
     {children}
   </span>
 );
+
+export const Breadcrumbs: React.FC = () => {
+  const location = useLocation();
+  const pathnames = location.pathname.split('/').filter((x) => x);
+
+  return (
+    <nav className="flex items-center text-sm text-bamboo mb-6 pl-1 font-bold">
+      <Link to="/" className="hover:text-wood transition-colors flex items-center bg-white p-2 rounded-lg shadow-sm border border-transparent hover:border-wood/20">
+        <Home size={16} />
+      </Link>
+      {pathnames.length > 0 && <ChevronRight size={14} className="mx-2 text-bamboo/30" />}
+      {pathnames.map((value, index) => {
+        const to = `/${pathnames.slice(0, index + 1).join('/')}`;
+        const isLast = index === pathnames.length - 1;
+
+        return (
+          <div key={to} className="flex items-center">
+            {isLast ? (
+              <span className="text-ink bg-white px-3 py-1 rounded-lg shadow-sm">{value.replace(/-/g, ' ')}</span>
+            ) : (
+              <Link to={to} className="hover:text-wood transition-colors capitalize">
+                {value.replace(/-/g, ' ')}
+              </Link>
+            )}
+            {!isLast && <ChevronRight size={14} className="mx-2 text-bamboo/30" />}
+          </div>
+        );
+      })}
+    </nav>
+  );
+};

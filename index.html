@@ -3,53 +3,78 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quizeon 3.0 - N5 Mastery</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Quizeon - Learn Japanese</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700;900&family=Yuji+Syuku&display=swap" rel="stylesheet">
-    <!-- FontAwesome for extra icons if needed -->
+    <!-- Imported Zen Kaku Gothic New for the Futuristic/Modern Japanese look -->
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Noto Sans JP', 'sans-serif'],
-              jp: ['Noto Sans JP', 'sans-serif'],
-              serif: ['Yuji Syuku', 'serif'],
+              sans: ['"Zen Kaku Gothic New"', 'sans-serif'],
+              jp: ['"Zen Kaku Gothic New"', 'sans-serif'],
+              serif: ['"Zen Kaku Gothic New"', 'sans-serif'],
+              mono: ['"Zen Kaku Gothic New"', 'monospace'], 
             },
             colors: {
-              rice: '#fbf9f1',
-              ink: '#2c2421',
-              sumi: '#1a1a1a',
-              bamboo: '#8d7b68',
-              hanko: '#c93a40',
-              straw: '#e0c097',
-              paper: '#ffffff',
+              // --- CORE PALETTE ---
+              rice: '#fdfaf1',      // --washi-bg
+              ink: '#3e2723',       // --secondary (Sumi Ink)
+              bamboo: '#795548',    // --washi-dim
+              hanko: '#bc2f32',     // --hanko (Vermilion)
+              straw: '#d4a373',     // --accent
+              wood: '#8d6e63',      // --primary
+              
+              // Helper for Cards (Paper) - keeping slightly brighter than Rice for contrast, 
+              // or strict Rice if preferred. Using pure white for card surfaces creates depth against Rice bg.
+              white: '#ffffff', 
+              black: '#3e2723', // Map black to Ink
+
+              // --- STRICT MAPPING OF ALL TAILWIND COLORS TO PALETTE ---
+              
+              // Gray/Slate/Zinc -> Bamboo & Rice
+              gray: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#e6e0d4', 300: '#d4a373', 400: '#795548', 500: '#795548', 600: '#795548', 700: '#3e2723', 800: '#3e2723', 900: '#3e2723' },
+              slate: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#795548', 800: '#3e2723', 900: '#3e2723' },
+              zinc: { 50: '#fdfaf1', 500: '#795548', 900: '#3e2723' },
+              neutral: { 50: '#fdfaf1', 500: '#795548', 900: '#3e2723' },
+              stone: { 50: '#fdfaf1', 500: '#795548', 900: '#3e2723' },
+
+              // Red/Rose/Pink -> Hanko (Vermilion)
+              red: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#bc2f32', 600: '#bc2f32', 700: '#3e2723', 800: '#3e2723', 900: '#3e2723' },
+              rose: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#bc2f32', 600: '#bc2f32' },
+              pink: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#bc2f32', 600: '#bc2f32' },
+
+              // Orange/Yellow/Amber -> Straw (Gold/Accent)
+              orange: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#bc2f32', 600: '#bc2f32' }, // Darker orange goes to Hanko
+              yellow: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 400: '#d4a373', 500: '#d4a373', 600: '#d4a373', 900: '#3e2723' },
+              amber: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#d4a373', 600: '#d4a373' },
+
+              // Green/Emerald/Teal -> Wood (Natural) or Straw (Highlight)
+              green: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#8d6e63', 700: '#3e2723' },
+              emerald: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#8d6e63', 600: '#8d6e63' },
+              teal: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#8d6e63', 600: '#8d6e63' },
+
+              // Blue/Indigo/Violet/Purple -> Wood (Primary) or Ink (Dark)
+              blue: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#795548', 700: '#3e2723', 800: '#3e2723' },
+              indigo: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#3e2723' },
+              violet: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#3e2723' },
+              purple: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#3e2723', 700: '#3e2723' },
+              cyan: { 50: '#fdfaf1', 500: '#8d6e63' },
+              sky: { 50: '#fdfaf1', 500: '#8d6e63' },
             },
             animation: {
-              'ink-bleed': 'inkBleed 1s cubic-bezier(0.2, 1, 0.3, 1) forwards',
-              'sakura-fall': 'sakuraFall 15s linear infinite',
               'fade-in': 'fadeIn 0.6s ease-out forwards',
               'float': 'float 6s ease-in-out infinite',
-              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'blob': 'blob 10s infinite',
-              'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
-              'pop': 'pop 0.4s ease-out forwards',
+              'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+              'bounce-slight': 'bounceSlight 2s infinite',
+              'ink-bleed': 'inkBleed 1.5s ease-out forwards',
             },
             keyframes: {
-              inkBleed: {
-                '0%': { opacity: '0', transform: 'scale(0.95) translateY(10px)', filter: 'blur(2px)' },
-                '100%': { opacity: '1', transform: 'scale(1) translateY(0)', filter: 'blur(0px)' },
-              },
-              sakuraFall: {
-                '0%': { transform: 'translateY(-10%) rotate(0deg) translateX(0)', opacity: '0' },
-                '10%': { opacity: '0.8' },
-                '90%': { opacity: '0.8' },
-                '100%': { transform: 'translateY(110%) rotate(360deg) translateX(50px)', opacity: '0' },
-              },
               fadeIn: {
                 '0%': { opacity: '0', transform: 'translateY(10px)' },
                 '100%': { opacity: '1', transform: 'translateY(0)' },
@@ -58,15 +83,16 @@
                 '0%, 100%': { transform: 'translateY(0)' },
                 '50%': { transform: 'translateY(-10px)' },
               },
-              shake: {
-                '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
-                '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
-                '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
-                '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
-              },
               pop: {
                 '0%': { transform: 'scale(0.8)', opacity: '0' },
-                '60%': { transform: 'scale(1.1)', opacity: '1' },
+                '100%': { transform: 'scale(1)', opacity: '1' }
+              },
+              bounceSlight: {
+                '0%, 100%': { transform: 'translateY(-3px)' },
+                '50%': { transform: 'translateY(3px)' }
+              },
+              inkBleed: {
+                '0%': { transform: 'scale(0.8)', opacity: '0' },
                 '100%': { transform: 'scale(1)', opacity: '1' }
               }
             }
@@ -76,79 +102,80 @@
     </script>
     <style>
       :root {
-        --color-bg: #fbf9f1;
-        --color-ink: #2c2421;
+        --primary: #8d6e63;
+        --secondary: #3e2723;
+        --accent: #d4a373;
+        --hanko: #bc2f32;
+        --washi-bg: #fdfaf1;
+        --washi-dim: #795548;
+        
+        --color-bg: var(--washi-bg);
+        --color-ink: var(--secondary);
       }
 
       body {
         background-color: var(--color-bg);
         color: var(--color-ink);
-        font-family: 'Noto Sans JP', sans-serif;
+        font-family: 'Zen Kaku Gothic New', sans-serif;
         overflow-x: hidden;
       }
 
-      /* Mount Fuji Background */
-      .fuji-bg {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: -2;
-        background: url('https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?q=80&w=1920&auto=format&fit=crop') no-repeat center center fixed;
-        background-size: cover;
-        opacity: 0.15; /* Subtle background */
-        filter: sepia(0.2) contrast(1.1);
+      /* Cyber-Washi Grid Pattern - Using Wood/Accent colors */
+      .bg-pattern {
+        background-size: 40px 40px;
+        background-image: linear-gradient(to right, rgba(212, 163, 115, 0.1) 1px, transparent 1px),
+                          linear-gradient(to bottom, rgba(212, 163, 115, 0.1) 1px, transparent 1px);
+        opacity: 0.8;
       }
 
-      /* Washi Texture Overlay */
+      /* Washi Paper Texture Overlay */
       .washi-texture {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        background-color: transparent;
+        background-image: url("https://www.transparenttextures.com/patterns/washi.png");
+        background-repeat: repeat;
+        background-size: auto;
+        opacity: 0.6;
+        mix-blend-mode: multiply;
         pointer-events: none;
-        z-index: -1;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
-        mix-blend-mode: overlay;
       }
 
-      .glass-effect {
-        background: rgba(255, 255, 255, 0.65);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+      /* Grain effect for extra texture if needed */
+      .washi-grain {
+        background-image: url("https://www.transparenttextures.com/patterns/cream-paper.png");
+        background-repeat: repeat;
       }
 
-      /* 3D Transform Utilities */
-      .perspective-1000 {
-        perspective: 1000px;
-      }
-      .transform-style-3d {
-        transform-style: preserve-3d;
-      }
-      .backface-hidden {
-        backface-visibility: hidden;
-      }
-      .rotate-y-180 {
-        transform: rotateY(180deg);
-      }
-
-      /* Custom Scrollbar */
+      /* Tech/Modern Scrollbar - using Wood/Straw */
       ::-webkit-scrollbar {
         width: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.02);
+        background: rgba(141, 110, 99, 0.05);
       }
       ::-webkit-scrollbar-thumb {
-        background: rgba(141, 123, 104, 0.3);
-        border-radius: 10px;
+        background: #d4a373;
+        border-radius: 0px; 
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: rgba(201, 58, 64, 0.5);
+        background: #8d6e63;
+      }
+
+      .writing-vertical {
+        writing-mode: vertical-rl;
+        text-orientation: upright;
+      }
+
+      .text-shadow-sm {
+        text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
+      }
+      
+      .backface-hidden {
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+      }
+      
+      .rotate-y-180 {
+        transform: rotateY(180deg);
       }
     </style>
   <script type="importmap">
@@ -163,15 +190,14 @@
     "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.0",
     "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.3"
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.3",
+    "framer-motion": "https://esm.sh/framer-motion@^11.0.8" 
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
-    <div class="fuji-bg"></div>
-    <div class="washi-texture"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

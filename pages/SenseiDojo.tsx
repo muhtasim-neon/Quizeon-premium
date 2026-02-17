@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { GlassCard, Button, Input } from '../components/UI';
+import { GlassCard, Button, Input, WonderCard } from '../components/UI';
 import { Bot, Send, User as UserIcon, Loader2, Sparkles } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { ChatMessage } from '../types';
@@ -37,7 +38,7 @@ export const SenseiDojo: React.FC = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col">
+    <div className="h-[calc(100vh-100px)] max-w-5xl mx-auto flex flex-col animate-fade-in">
       <div className="mb-4">
         <h1 className="text-3xl font-bold text-ink flex items-center gap-3">
             <Bot className="text-hanko" /> Sensei Dojo <span className="text-xs bg-hanko/10 text-hanko px-2 py-1 rounded border border-hanko/20">Gemini Powered</span>
@@ -45,12 +46,12 @@ export const SenseiDojo: React.FC = () => {
         <p className="text-bamboo">Your personal AI tutor available 24/7.</p>
       </div>
 
-      <GlassCard className="flex-1 flex flex-col overflow-hidden !p-0 border-bamboo/20">
+      <WonderCard colorClass="bg-white border-purple-200" className="flex-1 flex flex-col overflow-hidden !p-0">
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 relative z-10">
             {messages.map((msg) => (
                 <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'model' ? 'bg-rice border border-bamboo/20 text-hanko' : 'bg-hanko text-white'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'model' ? 'bg-purple-100 border border-purple-200 text-purple-700' : 'bg-hanko text-white'}`}>
                         {msg.role === 'model' ? <Bot size={20} /> : <UserIcon size={20} />}
                     </div>
                     <div className={`max-w-[80%] rounded-2xl p-4 shadow-sm ${msg.role === 'user' ? 'bg-hanko text-white' : 'bg-white border border-bamboo/10 text-ink'}`}>
@@ -60,7 +61,7 @@ export const SenseiDojo: React.FC = () => {
             ))}
             {loading && (
                 <div className="flex gap-4">
-                    <div className="w-10 h-10 rounded-full bg-rice border border-bamboo/20 text-hanko flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-purple-100 border border-purple-200 text-purple-700 flex items-center justify-center">
                         <Bot size={20} />
                     </div>
                     <div className="bg-white rounded-2xl p-4 flex items-center gap-2 text-bamboo border border-bamboo/10">
@@ -72,7 +73,7 @@ export const SenseiDojo: React.FC = () => {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t border-bamboo/10 bg-white/40">
+        <div className="p-4 border-t border-bamboo/10 bg-white/40 relative z-10">
             <form onSubmit={handleSend} className="flex gap-2">
                 <input 
                     className="flex-1 bg-white border border-bamboo/20 rounded-xl px-4 py-3 text-ink focus:outline-none focus:border-hanko transition-colors placeholder-bamboo/50"
@@ -86,7 +87,7 @@ export const SenseiDojo: React.FC = () => {
                 </Button>
             </form>
         </div>
-      </GlassCard>
+      </WonderCard>
     </div>
   );
 };

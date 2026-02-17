@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GlassCard, Button, Badge } from '../components/UI';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { GlassCard, Button, Badge, Input, WonderCard } from '../components/UI';
 import { 
     BookOpen, ArrowLeft, ArrowRight, Hash, Scale, Copy, ArrowRightLeft, 
-    Languages, Book, Layers, HelpCircle, Gamepad2, RotateCw, 
+    Languages, Book, Layers, HelpCircle, RotateCw, 
     CheckCircle, XCircle, Trophy, Grid, Bookmark, Volume2, Keyboard,
-    Calculator, PenTool, Shuffle, Timer, Heart, Move, Zap, Wand2, RefreshCw, Square, MessageCircle,
-    Smartphone, Globe, Wifi, ExternalLink, Frown, ThumbsDown, Play, SortAsc, X, Info, Rocket, Flame,
-    Target, MousePointer, Search, LayoutGrid, ListOrdered, Skull, Crosshair, Eye, Music,
-    Ear, Briefcase, Coffee, Pause, Pen, Loader2
+    PenTool, Timer, Heart, Zap, Wand2, RefreshCw, Square, MessageCircle,
+    Frown, Play, SortAsc, X, ListOrdered, Crosshair, Eye, Music,
+    Ear, Briefcase, Coffee, Pause, Loader2, Ghost, ThumbsDown, Flame, Sparkles,
+    ChevronRight, Check, AlertTriangle, Circle
 } from 'lucide-react';
 import { 
     VOCAB_DATA, KANA_DATA, KANJI_DATA, GRAMMAR_DATA, 
@@ -22,36 +22,49 @@ import { useSettings } from '../contexts/SettingsContext';
 
 // --- TYPES & UTILS ---
 
-type Difficulty = 'easy' | 'medium' | 'hard';
 type SectionType = 'kana' | 'vocab' | 'kanji' | 'grammar' | 'counter' | 'number' | 'synonym' | 'antonym' | 'conversation' | 'listening' | 'formal_informal';
-type ViewMode = 'list' | 'flashcard' | 'quiz' | 'match' | 'typing' | 'matrix' | 'scramble' | 'builder' | 'particle' | 'math' | 'story' | 'song' | 'conversation' | 'listening_drill' | 'games';
+type ViewMode = 'list' | 'flashcard' | 'quiz' | 'particle' | 'story' | 'song' | 'conversation' | 'listening_drill';
 type SortMethod = 'default' | 'az' | 'length' | 'random' | 'serial';
 
-const getDifficultyConfig = (diff: Difficulty) => {
-    switch(diff) {
-        case 'easy': return { time: 30, lives: 5, options: 3, hint: true };
-        case 'medium': return { time: 15, lives: 3, options: 4, hint: false };
-        case 'hard': return { time: 10, lives: 1, options: 4, hint: false };
-    }
-};
+interface ExtendedLearningItem extends LearningItem {
+    kanaPair?: string;
+}
 
-// Celebration Overlay Component
+interface QuizProps {
+    items: LearningItem[];
+    customMode?: 'particle' | 'normal';
+    onComplete?: (score: number, total: number) => void;
+}
+
 const CelebrationOverlay: React.FC = () => (
-    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-50 overflow-hidden">
-        <div className="absolute animate-blob text-6xl" style={{ top: '20%', left: '20%' }}>🎉</div>
-        <div className="absolute animate-blob animation-delay-2000 text-6xl" style={{ top: '30%', right: '20%' }}>✨</div>
-        <div className="absolute animate-bounce text-6xl" style={{ bottom: '20%', left: '50%' }}>🌟</div>
+    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-50 overflow-hidden bg-white/20 backdrop-blur-[2px]">
+        <div className="absolute animate-blob text-8xl" style={{ top: '20%', left: '20%' }}>🎉</div>
+        <div className="absolute animate-blob animation-delay-2000 text-8xl" style={{ top: '30%', right: '20%' }}>✨</div>
+        <div className="absolute animate-bounce text-8xl" style={{ bottom: '20%', left: '50%' }}>🌟</div>
     </div>
 );
 
-// Sad Vibe Overlay Component
-const SadOverlay: React.FC = () => (
-    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-50 bg-red-500/10 backdrop-blur-[2px]">
-        <Frown size={100} className="text-hanko animate-pulse" />
+const Confetti: React.FC = () => (
+    <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+        {[...Array(30)].map((_, i) => (
+            <div 
+                key={i}
+                className="absolute animate-float"
+                style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    width: '10px',
+                    height: '10px',
+                    backgroundColor: ['#10B981', '#F59E0B', '#3B82F6', '#EF4444', '#8B5CF6'][Math.floor(Math.random() * 5)],
+                    animationDuration: `${1 + Math.random()}s`,
+                    opacity: 0,
+                    animation: 'pop 1s ease-out forwards'
+                }}
+            />
+        ))}
     </div>
 );
 
-// Equalizer Component for Music Mode
 const Equalizer: React.FC = () => (
     <div className="flex items-end justify-center gap-1 h-12 mb-4">
         {[...Array(8)].map((_, i) => (
@@ -67,459 +80,439 @@ const Equalizer: React.FC = () => (
     </div>
 );
 
-// --- KANJI ANIMATED CARD COMPONENT ---
-
-const KanjiCard: React.FC<{ item: LearningItem }> = ({ item }) => {
-    const [isAnimating, setIsAnimating] = useState(false);
-    const [paths, setPaths] = useState<string[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [currentStroke, setCurrentStroke] = useState(-1);
-    const { speak } = useSettings();
-    const timerRef = useRef<number | null>(null);
-
-    const stopAnimation = () => {
-        setIsAnimating(false);
-        setCurrentStroke(-1);
-        if (timerRef.current) window.clearTimeout(timerRef.current);
-    };
-
-    const startAnimation = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (isAnimating) {
-            stopAnimation();
-            return;
-        }
-
-        setLoading(true);
-        setIsAnimating(true);
-        try {
-            // Convert character to Unicode hex code for KanjiVG
-            const hex = item.ja.charCodeAt(0).toString(16).toLowerCase().padStart(5, '0');
-            const response = await fetch(`https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/${hex}.svg`);
-            if (!response.ok) throw new Error("Character not found in KanjiVG");
-            const text = await response.text();
-            
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(text, "image/svg+xml");
-            const pathElements = Array.from(xmlDoc.querySelectorAll('path'));
-            const dPaths = pathElements.map(p => p.getAttribute('d') || '');
-            setPaths(dPaths);
-            
-            // Start the stroke sequence
-            let step = 0;
-            const play = () => {
-                if (step >= dPaths.length) {
-                    // Loop animation after a delay
-                    timerRef.current = window.setTimeout(() => {
-                        setCurrentStroke(-1);
-                        step = 0;
-                        play();
-                    }, 1500);
-                    return;
-                }
-                setCurrentStroke(step);
-                step++;
-                timerRef.current = window.setTimeout(play, 800); // Wait for path animation to finish
-            };
-            play();
-        } catch (e) {
-            console.error("Stroke data error:", e);
-            setIsAnimating(false);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
-    }, []);
+const CircularProgress: React.FC<{ percentage: number; color: string }> = ({ percentage, color }) => {
+    const radius = 60;
+    const stroke = 12;
+    const normalizedRadius = radius - stroke * 2;
+    const circumference = normalizedRadius * 2 * Math.PI;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
     return (
-        <GlassCard 
-            className="relative group hover:border-hanko/30 transition-all cursor-pointer overflow-hidden hover:-translate-y-1 h-full flex flex-col"
-            onClick={() => speak(item.ja)}
-        >
-            {/* Stroke Icon Overlay */}
-            <div className="absolute top-3 right-3 flex gap-2 z-20">
-                <button 
-                    onClick={startAnimation}
-                    className={`p-2 rounded-lg transition-all shadow-sm ${isAnimating ? 'bg-hanko text-white' : 'bg-white/80 text-bamboo hover:text-hanko'}`}
-                    title="Play Stroke Order"
-                >
-                    {isAnimating ? <X size={14} /> : <Pen size={14} />}
-                </button>
-            </div>
-
-            <div className="flex-1 flex flex-col items-center justify-center py-6 min-h-[160px]">
-                {isAnimating ? (
-                    <div className="w-24 h-24 relative flex items-center justify-center bg-rice/50 rounded-2xl border border-bamboo/10 shadow-inner">
-                        {loading ? (
-                            <RefreshCw size={24} className="text-hanko animate-spin" />
-                        ) : (
-                            <svg viewBox="0 0 109 109" className="w-full h-full p-2">
-                                {/* Ghost character (faded reference) */}
-                                {paths.map((d, i) => (
-                                    <path key={`g-${i}`} d={d} fill="none" stroke="#e0c097" strokeWidth="3" strokeLinecap="round" opacity="0.1" />
-                                ))}
-                                {/* Active drawing strokes */}
-                                {paths.map((d, i) => (
-                                    <path
-                                        key={`s-${i}`}
-                                        d={d}
-                                        fill="none"
-                                        stroke={i === currentStroke ? '#c93a40' : '#2c2421'}
-                                        strokeWidth="4"
-                                        strokeLinecap="round"
-                                        style={{
-                                            display: i <= currentStroke ? 'block' : 'none',
-                                            strokeDasharray: '1000',
-                                            strokeDashoffset: i === currentStroke ? '1000' : '0',
-                                            animation: i === currentStroke ? 'draw-stroke 0.8s forwards linear' : 'none',
-                                            opacity: i < currentStroke ? 0.6 : 1
-                                        }}
-                                    />
-                                ))}
-                            </svg>
-                        )}
-                    </div>
-                ) : (
-                    <>
-                        <div className="text-7xl font-jp font-bold text-ink mb-2 drop-shadow-sm transition-transform group-hover:scale-110">{item.ja}</div>
-                        <div className="text-xs font-bold text-hanko uppercase tracking-widest bg-hanko/5 px-2 py-0.5 rounded-full">{item.romaji}</div>
-                    </>
-                )}
-            </div>
-
-            <div className="pt-3 border-t border-bamboo/10 mt-auto text-center pb-1">
-                <p className="text-sm font-bold text-ink/80">{item.en}</p>
-                {item.bn && <p className="text-[10px] text-bamboo mt-1 font-medium italic">🇧🇩 {item.bn}</p>}
-            </div>
-
-            <style>{`
-                @keyframes draw-stroke {
-                    from { stroke-dashoffset: 1000; }
-                    to { stroke-dashoffset: 0; }
-                }
-            `}</style>
-        </GlassCard>
-    );
-};
-
-// --- VOCAB PRACTICE CARD COMPONENT ---
-
-const VocabPracticeCard: React.FC<{ item: LearningItem }> = ({ item }) => {
-    const [isPracticing, setIsPracticing] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [sentences, setSentences] = useState<{ja: string, ro: string, en: string}[]>([]);
-    const { speak } = useSettings();
-
-    const startPractice = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setIsPracticing(true);
-        setLoading(true);
-        try {
-            const data = await aiService.generateSentences(item.ja);
-            setSentences(data);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const stopPractice = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setIsPracticing(false);
-        setSentences([]);
-    };
-
-    return (
-        <GlassCard 
-            key={item.id} 
-            className={`relative group border-white transition-all duration-300 cursor-pointer overflow-hidden transform active:scale-95 ${isPracticing ? 'col-span-full md:col-span-1 lg:col-span-2 min-h-[300px]' : 'hover:-translate-y-1.5 shadow-sm hover:shadow-xl'}`}
-            onClick={(e) => !isPracticing ? startPractice(e) : speak(item.ja)}
-        >
-            {isPracticing ? (
-                <div className="flex flex-col h-full animate-fade-in">
-                    <div className="flex justify-between items-center mb-6 border-b border-bamboo/10 pb-4">
-                        <div className="flex items-center gap-3">
-                            <span className="text-3xl font-jp font-bold text-hanko">{item.ja}</span>
-                            <Badge color="bg-hanko/10 text-hanko border-hanko/20">Practice Mode</Badge>
-                        </div>
-                        <button 
-                            onClick={stopPractice}
-                            className="p-2 bg-rice hover:bg-white text-bamboo hover:text-hanko rounded-full border border-bamboo/10 transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    {loading ? (
-                        <div className="flex-1 flex flex-col items-center justify-center py-10">
-                            <Loader2 className="animate-spin text-hanko mb-4" size={48} />
-                            <p className="text-bamboo font-medium">Creating 5 easy sentences for you...</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {sentences.map((s, i) => (
-                                <div key={i} className="p-4 bg-white/60 rounded-2xl border border-bamboo/10 hover:border-hanko/20 transition-colors group/sentence">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            <p className="text-xl font-jp font-bold text-ink mb-1">{s.ja}</p>
-                                            <p className="text-xs text-hanko font-medium mb-1">{s.ro}</p>
-                                            <p className="text-sm text-bamboo italic">{s.en}</p>
-                                        </div>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); speak(s.ja); }}
-                                            className="p-2 text-bamboo hover:text-hanko opacity-0 group-hover/sentence:opacity-100 transition-opacity"
-                                        >
-                                            <Volume2 size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <>
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all pointer-events-none bg-hanko/10 text-hanko px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest">Practice sentences</div>
-                    <div className="pt-2">
-                        <div className="text-4xl font-jp font-bold text-ink mb-2 relative z-10">{item.ja}</div>
-                        <div className="font-mono text-lg mb-3 relative z-10 text-bamboo/60 uppercase tracking-widest">{item.romaji}</div>
-                    </div>
-                    
-                    <div className="pt-4 border-t border-bamboo/5 relative z-10">
-                        <p className="text-ink/80 font-medium leading-tight">{item.en}</p>
-                        {item.bn && <p className="text-xs text-bamboo mt-2 italic font-serif">🇧🇩 {item.bn}</p>}
-                        {item.usage && <p className="text-[11px] text-bamboo mt-3 bg-rice/50 p-2.5 rounded-lg border border-bamboo/5 leading-relaxed">Ex: <span className="text-ink/70 font-jp">{item.usage}</span></p>}
-                    </div>
-                    
-                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-hanko/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                </>
-            )}
-        </GlassCard>
-    );
-};
-
-// --- GAME COMPONENTS ---
-
-const MemoryMatchGame: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
-    const { playSound } = useSettings();
-    const [cards, setCards] = useState<any[]>([]);
-    const [flipped, setFlipped] = useState<number[]>([]);
-    const [matched, setMatched] = useState<number[]>([]);
-    const [moves, setMoves] = useState(0);
-
-    useEffect(() => {
-        const selection = items.sort(() => 0.5 - Math.random()).slice(0, 6);
-        const deck = [...selection.map(k => ({ ...k, display: k.ja, matchId: k.id })), 
-                      ...selection.map(k => ({ ...k, display: k.romaji, matchId: k.id }))]
-                      .sort(() => 0.5 - Math.random());
-        setCards(deck);
-    }, [items]);
-
-    const handleCardClick = (index: number) => {
-        if (flipped.length === 2 || flipped.includes(index) || matched.includes(index)) return;
-
-        const newFlipped = [...flipped, index];
-        setFlipped(newFlipped);
-        playSound('flip');
-
-        if (newFlipped.length === 2) {
-            setMoves(m => m + 1);
-            const [first, second] = newFlipped;
-            if (cards[first].matchId === cards[second].matchId) {
-                setMatched(m => [...m, first, second]);
-                setFlipped([]);
-                playSound('correct');
-            } else {
-                setTimeout(() => setFlipped([]), 1000);
-            }
-        }
-    };
-
-    if (matched.length === cards.length && cards.length > 0) {
-        return (
-            <div className="text-center py-10 animate-pop">
-                <Trophy size={64} className="mx-auto text-straw mb-6 animate-bounce" />
-                <h3 className="text-3xl font-bold text-ink mb-2">Stage Clear!</h3>
-                <p className="text-bamboo mb-8">Completed in {moves} moves</p>
-                <Button onClick={onExit}><RotateCw size={18} /> Finish</Button>
-            </div>
-        );
-    }
-
-    return (
-        <div className="py-4">
-            <div className="flex justify-between mb-6">
-                <span className="text-bamboo font-bold bg-white/50 px-3 py-1 rounded-lg">Moves: {moves}</span>
-                <Button variant="ghost" size="sm" onClick={onExit}><X size={16} /> Exit</Button>
-            </div>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-                {cards.map((card, i) => (
-                    <div 
-                        key={i}
-                        onClick={() => handleCardClick(i)}
-                        className={`aspect-square rounded-xl flex items-center justify-center text-xl md:text-2xl font-bold transition-all duration-500 cursor-pointer shadow-sm border
-                            ${flipped.includes(i) || matched.includes(i) 
-                                ? 'bg-white text-ink border-hanko rotate-0' 
-                                : 'bg-hanko text-transparent border-hanko/50 rotate-y-180 hover:bg-red-700'}
-                        `}
-                    >
-                        {(flipped.includes(i) || matched.includes(i)) ? card.display : '?'}
-                    </div>
-                ))}
+        <div className="relative flex items-center justify-center">
+            <svg height={radius * 2} width={radius * 2} className="rotate-[-90deg]">
+                <circle
+                    stroke="#e5e7eb"
+                    strokeWidth={stroke}
+                    fill="transparent"
+                    r={normalizedRadius}
+                    cx={radius}
+                    cy={radius}
+                />
+                <circle
+                    stroke={color}
+                    fill="transparent"
+                    strokeWidth={stroke}
+                    strokeDasharray={circumference + ' ' + circumference}
+                    style={{ strokeDashoffset, transition: 'stroke-dashoffset 1s ease-out' }}
+                    strokeLinecap="round"
+                    r={normalizedRadius}
+                    cx={radius}
+                    cy={radius}
+                />
+            </svg>
+            <div className="absolute text-3xl font-black text-ink font-mono">
+                {Math.round(percentage)}%
             </div>
         </div>
     );
 };
 
-const TypingMasterGame: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
-    const { playSound } = useSettings();
-    const [gameState, setGameState] = useState<'menu' | 'playing' | 'gameover'>('menu');
-    const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-    const [current, setCurrent] = useState<LearningItem | null>(null);
-    const [input, setInput] = useState('');
+// --- COMPONENT DEFINITIONS ---
+
+const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplete }) => {
+    const { playSound, speak } = useSettings();
+    
+    // Game State
+    const [questions, setQuestions] = useState<any[]>([]);
+    const [currentQIndex, setCurrentQIndex] = useState(0);
     const [score, setScore] = useState(0);
-    const [lives, setLives] = useState(3);
     const [streak, setStreak] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(100);
-    const [isShaking, setIsShaking] = useState(false);
-    const [feedback, setFeedback] = useState<string | null>(null);
+    const [maxStreak, setMaxStreak] = useState(0);
+    const [mistakes, setMistakes] = useState<any[]>([]);
+    const [showResult, setShowResult] = useState(false);
+    
+    // Question State
+    const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [isAnswered, setIsAnswered] = useState(false);
+    const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+    const [timeLeft, setTimeLeft] = useState(15);
+    
     const timerRef = useRef<number | null>(null);
 
-    const getDifficultyParams = () => {
-        switch (difficulty) {
-            case 'easy': return { timeMs: 15000, decay: 0.2 };
-            case 'medium': return { timeMs: 8000, decay: 0.5 };
-            case 'hard': return { timeMs: 4000, decay: 1.0 };
-        }
-    };
+    // Initialize Quiz
+    useEffect(() => {
+        if (items.length < 2) return;
 
-    const startGame = () => {
-        setScore(0);
-        setLives(3);
-        setStreak(0);
-        setGameState('playing');
-        playSound('click');
-        nextWord();
-    };
+        // 1. Shuffle all items to create a random order
+        const shuffledItems = [...items].sort(() => 0.5 - Math.random());
 
-    const nextWord = () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        const item = items[Math.floor(Math.random() * items.length)];
-        setCurrent(item);
-        setInput('');
-        setTimeLeft(100);
-        setFeedback(null);
-        const params = getDifficultyParams();
-        const tickRate = 50; 
-        const decrement = (100 / (params.timeMs / tickRate));
-        timerRef.current = window.setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev <= 0) {
-                    handleTimeOut();
-                    return 0;
+        // 2. Generate Question Objects
+        const qs = shuffledItems.map(item => {
+            // Logic for Particle Mode
+            if (customMode === 'particle' && item.usage) {
+                const particles = ['は', 'が', 'を', 'に', 'で', 'へ', 'と', 'の', 'も'];
+                const foundParticles = particles.filter(p => item.usage!.includes(p));
+                if (foundParticles.length > 0) {
+                    const targetP = foundParticles[Math.floor(Math.random() * foundParticles.length)];
+                    const questionText = item.usage!.replace(targetP, '___');
+                    const distractors = particles.filter(p => p !== targetP).sort(() => 0.5 - Math.random()).slice(0, 3);
+                    return {
+                        id: item.id,
+                        type: 'text',
+                        question: questionText + (item.en ? `\n(${item.en})` : ''),
+                        correct: targetP,
+                        options: [targetP, ...distractors].sort(() => 0.5 - Math.random()),
+                        original: item
+                    };
                 }
-                return prev - decrement;
-            });
-        }, tickRate);
-    };
+            }
+
+            // Logic for Standard Mode
+            // Decide Question Type: Text JA->EN (40%), Text EN->JA (40%), Audio->EN (20%)
+            const rand = Math.random();
+            let type = 'ja_en';
+            if (rand > 0.4) type = 'en_ja';
+            if (rand > 0.8 && item.ja) type = 'audio';
+
+            let questionText, correctText, optionsPool;
+
+            if (type === 'audio') {
+                questionText = item.ja; // Used for audio source
+                correctText = item.en;
+                optionsPool = shuffledItems.filter(i => i.id !== item.id).map(i => i.en);
+            } else if (type === 'ja_en') {
+                questionText = item.ja;
+                correctText = item.en;
+                optionsPool = shuffledItems.filter(i => i.id !== item.id).map(i => i.en);
+            } else {
+                questionText = item.en;
+                correctText = item.ja;
+                optionsPool = shuffledItems.filter(i => i.id !== item.id).map(i => i.ja);
+            }
+
+            // Ensure unique options
+            const uniqueOptions = [...new Set(optionsPool)];
+            const wrongOptions = uniqueOptions.sort(() => 0.5 - Math.random()).slice(0, 3);
+            
+            return {
+                id: item.id,
+                type: type,
+                question: questionText,
+                correct: correctText,
+                options: [...wrongOptions, correctText].sort(() => 0.5 - Math.random()),
+                original: item
+            };
+        }).filter(q => q);
+
+        setQuestions(qs);
+        setScore(0);
+        setStreak(0);
+        setMaxStreak(0);
+        setMistakes([]);
+        setCurrentQIndex(0);
+        setShowResult(false);
+        setIsAnswered(false);
+        setSelectedOption(null);
+        setFeedback(null);
+        setTimeLeft(15);
+
+    }, [items, customMode]);
+
+    // Timer Logic
+    useEffect(() => {
+        if (!isAnswered && !showResult && questions.length > 0) {
+            timerRef.current = window.setInterval(() => {
+                setTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        handleTimeOut();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [isAnswered, showResult, questions.length, currentQIndex]);
 
     const handleTimeOut = () => {
-        if (timerRef.current) clearInterval(timerRef.current);
+        if (isAnswered) return;
+        setIsAnswered(true);
+        setFeedback('wrong');
         playSound('wrong');
-        setLives(prev => {
-            const newLives = prev - 1;
-            if (newLives <= 0) { endGame(); return 0; }
-            return newLives;
-        });
         setStreak(0);
-        setIsShaking(true);
-        setTimeout(() => { setIsShaking(false); nextWord(); }, 500);
-    };
-
-    const endGame = () => {
-        setGameState('gameover');
-        playSound('gameover');
-        if (timerRef.current) clearInterval(timerRef.current);
-    };
-
-    useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); }; }, []);
-
-    const check = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        if (!current) return;
-        if (!current.romaji.toLowerCase().startsWith(val.toLowerCase())) {
-            setIsShaking(true);
-            playSound('click');
-            setTimeout(() => setIsShaking(false), 200);
-            return;
+        
+        // Save Mistake on Timeout
+        const currentQ = questions[currentQIndex];
+        if (currentQ) {
+            setMistakes(prev => [...prev, currentQ]);
+            if (currentQ.original) progressService.addMistake(currentQ.original);
         }
-        setInput(val);
-        if (val.toLowerCase() === current.romaji.toLowerCase()) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            playSound('hit');
-            setScore(s => s + (10 * (streak + 1)));
-            setStreak(s => s + 1);
-            setFeedback(`+${10 * (streak + 1)}`);
-            nextWord();
+
+        // Auto Advance
+        setTimeout(proceedToNext, 2000);
+    };
+
+    const handleAnswer = (option: string) => {
+        if (isAnswered) return;
+        
+        setIsAnswered(true);
+        setSelectedOption(option);
+        
+        const currentQ = questions[currentQIndex];
+        const isCorrect = option === currentQ.correct;
+
+        if (isCorrect) {
+            setFeedback('correct');
+            playSound('correct');
+            setScore(prev => prev + 1);
+            const newStreak = streak + 1;
+            setStreak(newStreak);
+            if (newStreak > maxStreak) setMaxStreak(newStreak);
+            progressService.addXP(10 + (streak * 2)); // Streak bonus
+            
+            // Speak if text based Japanese answer
+            if (currentQ.type === 'en_ja') {
+               speak(currentQ.correct);
+            }
+        } else {
+            setFeedback('wrong');
+            playSound('wrong');
+            setStreak(0);
+            setMistakes(prev => [...prev, currentQ]);
+            // Save Mistake on Wrong Answer
+            progressService.addMistake(currentQ.original);
+        }
+
+        // Auto Advance
+        setTimeout(proceedToNext, 1500);
+    };
+
+    const proceedToNext = () => {
+        if (currentQIndex < questions.length - 1) {
+            setCurrentQIndex(prev => prev + 1);
+            setIsAnswered(false);
+            setSelectedOption(null);
+            setFeedback(null);
+            setTimeLeft(15);
+        } else {
+            finishQuiz();
         }
     };
 
-    if (gameState === 'menu') {
+    const finishQuiz = () => {
+        setShowResult(true);
+        const total = questions.length;
+    };
+
+    if (items.length < 4) return <div className="text-center py-10 text-bamboo">Not enough items to generate a quiz. (Need 4+)</div>;
+    if (questions.length === 0) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-hanko" /></div>;
+
+    // --- RESULTS SCREEN ---
+    if (showResult) {
+        const percentage = Math.round((score / questions.length) * 100);
+        const passed = percentage >= 80;
+        const resultColor = passed ? '#10B981' : '#EF4444'; // Emerald or Red
+
         return (
-            <div className="text-center py-10 max-w-md mx-auto">
-                <Keyboard size={64} className="mx-auto text-hanko mb-4 animate-pulse" />
-                <h2 className="text-3xl font-bold text-ink mb-6 font-serif">Typing Master</h2>
-                <div className="space-y-4 mb-8">
-                    {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
-                        <button key={d} onClick={() => setDifficulty(d)} className={`w-full py-3 rounded-xl font-bold uppercase tracking-widest transition-all ${difficulty === d ? 'bg-hanko text-white shadow-lg scale-105' : 'bg-white border border-bamboo/20 text-bamboo hover:bg-rice'}`}>{d}</button>
-                    ))}
-                </div>
-                <Button onClick={startGame} className="w-full py-4 text-xl shadow-xl">Start Game <Play size={20} className="ml-2" /></Button>
+            <div className="max-w-2xl mx-auto py-8 animate-fade-in relative">
+                {passed && <CelebrationOverlay />}
+                {passed && <Confetti />}
+                
+                <GlassCard className={`text-center py-10 border-t-4 ${passed ? 'border-t-emerald-500 shadow-emerald-100' : 'border-t-red-500 shadow-red-100'}`}>
+                    
+                    <div className="mb-8 flex justify-center">
+                        <CircularProgress percentage={percentage} color={resultColor} />
+                    </div>
+
+                    <h2 className="text-4xl font-bold text-ink mb-2 font-serif">
+                        {passed ? 'Assessment Passed!' : 'Needs Practice'}
+                    </h2>
+                    
+                    <p className="text-bamboo mb-4 text-lg">
+                        You scored {score} out of {questions.length}
+                    </p>
+
+                    <div className="flex justify-center gap-4 mb-8">
+                        <div className="bg-rice px-4 py-2 rounded-xl border border-bamboo/10">
+                            <span className="block text-xs font-bold text-bamboo uppercase">Max Streak</span>
+                            <span className="text-xl font-black text-hanko flex items-center justify-center gap-1">
+                                <Zap size={16} fill="currentColor" /> {maxStreak}
+                            </span>
+                        </div>
+                        <div className="bg-rice px-4 py-2 rounded-xl border border-bamboo/10">
+                            <span className="block text-xs font-bold text-bamboo uppercase">XP Earned</span>
+                            <span className="text-xl font-black text-purple-600">+{score * 10 + maxStreak * 5}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 justify-center mb-10">
+                        <Button variant="secondary" onClick={() => { 
+                            // Reset
+                            setScore(0);
+                            setStreak(0);
+                            setMaxStreak(0);
+                            setMistakes([]);
+                            setCurrentQIndex(0);
+                            setShowResult(false);
+                            setIsAnswered(false);
+                            setSelectedOption(null);
+                            setFeedback(null);
+                            setTimeLeft(15);
+                        }}>
+                            <RefreshCw size={18} className="mr-2" /> Retry
+                        </Button>
+                        
+                        {passed && (
+                            <Button onClick={() => {
+                                if(onComplete) onComplete(score, questions.length);
+                            }}>
+                                Continue <ArrowRight size={18} className="ml-2" />
+                            </Button>
+                        )}
+                    </div>
+
+                    {mistakes.length > 0 && (
+                        <div className="text-left bg-red-50/50 rounded-2xl p-6 border border-red-100">
+                            <h3 className="font-bold text-red-800 mb-4 flex items-center gap-2">
+                                <AlertTriangle size={18} /> Review Mistakes ({mistakes.length})
+                            </h3>
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                {mistakes.map((m, i) => (
+                                    <div key={i} className="bg-white p-3 rounded-xl border border-red-100 flex justify-between items-center shadow-sm">
+                                        <div>
+                                            <div className="text-sm font-bold text-ink">{m.type === 'audio' ? '(Audio Question)' : m.question}</div>
+                                            <div className="text-xs text-bamboo">{m.original.ja} • {m.original.romaji}</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded inline-block mb-1">
+                                                {m.correct}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </GlassCard>
             </div>
         );
     }
 
-    if (gameState === 'gameover') {
-        return (
-            <div className="text-center py-10 animate-pop">
-                <Skull size={64} className="mx-auto text-bamboo mb-6" />
-                <h3 className="text-3xl font-bold text-ink mb-2">Game Over</h3>
-                <div className="text-6xl font-mono font-bold text-hanko mb-4">{score}</div>
-                <p className="text-bamboo mb-8 uppercase tracking-widest text-xs font-bold">Final Score</p>
-                <div className="flex gap-4 justify-center">
-                    <Button onClick={() => { setGameState('menu'); }} variant="secondary">Menu</Button>
-                    <Button onClick={startGame}>Try Again</Button>
-                </div>
-            </div>
-        );
-    }
+    const currentQ = questions[currentQIndex];
+    const progress = ((currentQIndex + 1) / questions.length) * 100;
 
     return (
-        <div className="text-center py-6 max-w-md mx-auto relative">
-            <div className="flex justify-between items-center mb-8 px-4">
-                <div className="flex flex-col items-start"><span className="text-xs text-bamboo font-bold uppercase tracking-widest">Score</span><span className="text-2xl font-mono font-bold text-ink">{score}</span></div>
-                <div className="flex gap-1">{[...Array(3)].map((_, i) => (<Heart key={i} size={24} className={`${i < lives ? 'text-hanko fill-hanko' : 'text-bamboo/20 fill-bamboo/20'} transition-colors`} />))}</div>
-            </div>
-            <div className="w-full h-2 bg-bamboo/10 rounded-full mb-8 overflow-hidden"><div className={`h-full transition-all duration-100 ease-linear ${timeLeft < 30 ? 'bg-hanko' : timeLeft < 60 ? 'bg-straw' : 'bg-green-50'}`} style={{ width: `${timeLeft}%` }}></div></div>
-            {current && (
-                <div className="relative mb-8">
-                    {feedback && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-12 text-3xl font-bold text-straw animate-float-slow opacity-0 z-20" style={{ animation: 'pop 0.5s forwards' }}>{feedback}</div>}
-                    <div className="text-xs text-bamboo font-bold uppercase tracking-widest mb-2 border border-bamboo/20 rounded-full px-3 py-1 inline-block">Type the Romaji</div>
-                    <div className={`text-7xl md:text-8xl font-bold text-ink mb-4 font-jp transition-transform ${isShaking ? 'animate-shake text-hanko' : ''}`} key={current.id}>{current.ja}</div>
-                    {difficulty === 'easy' && <div className="text-bamboo text-sm mb-4 font-medium">{current.en}</div>}
-                    <div className="relative"><input autoFocus value={input} onChange={check} className={`w-full text-center text-3xl p-4 border-b-2 bg-transparent focus:outline-none transition-colors font-mono tracking-widest ${isShaking ? 'border-hanko text-hanko' : 'border-bamboo/30 text-ink focus:border-hanko'}`} placeholder="..." /><div className="absolute right-0 top-1/2 -translate-y-1/2 text-bamboo/20"><Crosshair size={24} /></div></div>
+        <div className="max-w-xl mx-auto py-6 animate-fade-in relative">
+            {/* Header Stats */}
+            <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-bamboo/10">
+                    <span className="text-xs font-bold text-bamboo uppercase">Streak</span>
+                    <div className="flex items-center text-hanko font-black">
+                        <Zap size={16} fill="currentColor" className={streak > 2 ? "animate-bounce" : ""} />
+                        <span>{streak}</span>
+                    </div>
                 </div>
-            )}
-            <div className="flex justify-between items-center text-xs font-bold text-bamboo uppercase tracking-widest mt-8"><span>Streak: {streak} 🔥</span><button onClick={onExit} className="hover:text-hanko transition-colors">Exit Game</button></div>
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-bamboo/10">
+                    <Timer size={16} className={timeLeft <= 5 ? "text-red-500 animate-pulse" : "text-bamboo"} />
+                    <span className={`font-mono font-bold ${timeLeft <= 5 ? "text-red-500" : "text-ink"}`}>{timeLeft}s</span>
+                </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-8">
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                        className="h-full bg-hanko transition-all duration-500 ease-out" 
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+            </div>
+
+            {/* Question Card */}
+            <GlassCard className="text-center py-12 mb-8 border-0 shadow-xl bg-white relative overflow-hidden flex flex-col items-center justify-center min-h-[220px]">
+                {/* Background Decoration */}
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500"></div>
+                <div className="absolute -bottom-10 -right-10 text-bamboo/5 rotate-12 pointer-events-none">
+                    <HelpCircle size={150} />
+                </div>
+
+                {currentQ.type === 'audio' ? (
+                    <div className="animate-pop">
+                        <button 
+                            onClick={() => speak(currentQ.question)} 
+                            className="w-24 h-24 bg-hanko rounded-full flex items-center justify-center text-white shadow-lg shadow-hanko/30 hover:scale-110 transition-transform mb-4 animate-pulse"
+                        >
+                            <Volume2 size={40} />
+                        </button>
+                        <p className="text-bamboo font-bold uppercase tracking-widest text-xs">Listen & Select Meaning</p>
+                    </div>
+                ) : (
+                    <div className="animate-pop relative z-10">
+                        <h2 className="text-4xl md:text-5xl font-jp font-bold text-ink mb-4 leading-relaxed drop-shadow-sm">
+                            {currentQ.question}
+                        </h2>
+                        <div className="text-[10px] text-bamboo uppercase tracking-[0.2em] font-bold bg-rice px-3 py-1 rounded-full border border-bamboo/10 inline-block">
+                            Select Answer
+                        </div>
+                    </div>
+                )}
+            </GlassCard>
+
+            {/* Options Grid */}
+            <div className="grid grid-cols-1 gap-3 mb-8">
+                {currentQ.options.map((opt: string, i: number) => {
+                    const isSelected = selectedOption === opt;
+                    const isCorrect = opt === currentQ.correct;
+                    
+                    let btnClass = "bg-white hover:bg-white/80 border-transparent shadow-sm text-ink hover:-translate-y-0.5 hover:shadow-md";
+                    let icon = null;
+
+                    if (isAnswered) {
+                        if (isCorrect) {
+                            // Correct Style: Emerald Glow (Always show correct answer)
+                            btnClass = "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-lg shadow-emerald-100 ring-2 ring-emerald-200 scale-[1.01]";
+                            icon = <CheckCircle size={20} className="text-emerald-600 ml-auto shrink-0" />;
+                        } else if (isSelected) {
+                            // Wrong Selection Style: Crimson Glow
+                            btnClass = "bg-red-50 border-red-500 text-red-800 shadow-lg shadow-red-100 ring-2 ring-red-200 animate-shake";
+                            icon = <XCircle size={20} className="text-red-600 ml-auto shrink-0" />;
+                        } else {
+                            // Dim others
+                            btnClass = "bg-gray-50 text-gray-400 border-transparent opacity-50 scale-95";
+                        }
+                    }
+
+                    return (
+                        <button 
+                            key={i} 
+                            onClick={() => handleAnswer(opt)} 
+                            disabled={isAnswered} 
+                            className={`
+                                relative w-full text-left py-4 px-6 rounded-2xl border-2 text-lg font-bold transition-all duration-200 
+                                flex items-center
+                                ${btnClass}
+                            `}
+                        >
+                            <span className="flex-1">{opt}</span>
+                            {icon}
+                        </button>
+                    )
+                })}
+            </div>
         </div>
     );
 };
 
-// ... (LessonStoryView, LessonSongView, ListeningDrillView, FlashcardView remain same)
+const KanaQuizView: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
+    return (
+        <div className="w-full">
+            <Button variant="ghost" onClick={onExit} className="mb-4">← Exit Quiz</Button>
+            <QuizView items={items} />
+        </div>
+    );
+};
 
 const LessonStoryView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
     const { speak, isSpeaking, isPaused, pauseAudio, resumeAudio, stopAudio } = useSettings();
@@ -738,7 +731,6 @@ const LessonSongView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
             const line = song.lyrics[i];
             
             // Speak the line - wait for it to finish
-            // The speech system now supports pausing natively via context
             await speak(line.kana);
             
             // Brief pause between lines
@@ -860,7 +852,6 @@ const ListeningDrillView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
         if (currentIndex < items.length - 1) {
             setCurrentIndex(prev => prev + 1);
         } else {
-            // Loop back or finish
             setCurrentIndex(0);
         }
     };
@@ -939,11 +930,9 @@ const FlashcardView: React.FC<{ items: LearningItem[] }> = ({ items: initialItem
     const toggleFlip = useCallback(() => {
         if (!flipped) {
             playSound('flip');
-            // Auto-sound removed per request
-            // setTimeout(() => systemSpeak(current.ja), 300);
         }
         setFlipped(prev => !prev);
-    }, [flipped, playSound, current]);
+    }, [flipped, playSound]);
 
     const markUnknown = useCallback(() => {
         if (current) {
@@ -972,7 +961,6 @@ const FlashcardView: React.FC<{ items: LearningItem[] }> = ({ items: initialItem
         systemSpeak(current.ja);
     };
 
-    // Specific requested logic: Space to Flip. If already flipped, Space to Mistake & Next.
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.code === 'Space') {
@@ -980,7 +968,7 @@ const FlashcardView: React.FC<{ items: LearningItem[] }> = ({ items: initialItem
                 if (!flipped) {
                     toggleFlip();
                 } else {
-                    markUnknown(); // Space on back -> Mistake & Next
+                    markUnknown();
                 }
             }
             if (e.key === 'ArrowRight') nextCard();
@@ -1068,190 +1056,243 @@ const FlashcardView: React.FC<{ items: LearningItem[] }> = ({ items: initialItem
     );
 };
 
-interface QuizProps {
-    items: LearningItem[];
-    difficulty: Difficulty;
-    customMode?: 'particle' | 'normal';
-    onComplete?: (score: number, total: number) => void;
-}
+const KanjiCard: React.FC<{ item: LearningItem; isActive?: boolean }> = ({ item, isActive }) => {
+    const [isAnimating, setIsAnimating] = useState(false);
+    const [paths, setPaths] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [currentStroke, setCurrentStroke] = useState(-1);
+    const { speak } = useSettings();
+    const timerRef = useRef<number | null>(null);
 
-const QuizView: React.FC<QuizProps> = ({ items, difficulty, customMode = 'normal', onComplete }) => {
-    const { playSound } = useSettings();
-    const [currentQIndex, setCurrentQIndex] = useState(0);
-    const [score, setScore] = useState(0);
-    const [lives, setLives] = useState(3);
-    const [showScore, setShowScore] = useState(false);
-    const [questions, setQuestions] = useState<any[]>([]);
-    const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
-    const [timeLeft, setTimeLeft] = useState(10);
-    const config = getDifficultyConfig(difficulty);
-
-    useEffect(() => {
-        if (items.length < 2) return;
-        setLives(config.lives);
-        const deck = [...items].sort(() => 0.5 - Math.random()); 
-        const qs = deck.map(item => {
-            if (customMode === 'particle' && item.usage) {
-                const particles = ['は', 'が', 'を', 'に', 'で', 'へ', 'と', 'の', 'も'];
-                const foundParticles = particles.filter(p => item.usage!.includes(p));
-                if (foundParticles.length > 0) {
-                    const targetP = foundParticles[Math.floor(Math.random() * foundParticles.length)];
-                    const questionText = item.usage!.replace(targetP, '___');
-                    const distractors = particles.filter(p => p !== targetP).sort(() => 0.5 - Math.random()).slice(0, config.options - 1);
-                    return {
-                        question: questionText + (item.en ? `\n(${item.en})` : ''),
-                        correct: targetP,
-                        options: [targetP, ...distractors].sort(() => 0.5 - Math.random())
-                    };
-                }
-            }
-            const hasBangla = !!item.bn;
-            const modes = ['ja_en', 'en_ja'];
-            if (hasBangla) { modes.push('ja_bn', 'bn_ja'); }
-            const mode = modes[Math.floor(Math.random() * modes.length)];
-            let questionText, correctText, optionsPool;
-            if (mode === 'ja_bn') {
-                questionText = item.ja;
-                correctText = item.bn!;
-                optionsPool = deck.filter(i => i.id !== item.id && i.bn).map(i => i.bn!);
-            } else if (mode === 'bn_ja') {
-                questionText = item.bn!;
-                correctText = item.ja;
-                optionsPool = deck.filter(i => i.id !== item.id).map(i => i.ja);
-            } else if (mode === 'en_ja') {
-                questionText = item.en;
-                correctText = item.ja;
-                optionsPool = deck.filter(i => i.id !== item.id).map(i => i.ja);
-            } else {
-                questionText = item.ja;
-                correctText = item.en;
-                optionsPool = deck.filter(i => i.id !== item.id).map(i => i.en);
-            }
-            const wrongOptions = optionsPool.sort(() => 0.5 - Math.random()).slice(0, config.options - 1);
-            return {
-                question: questionText,
-                correct: correctText,
-                options: [...wrongOptions, correctText].sort(() => 0.5 - Math.random())
-            };
-        }).filter(q => q);
-        setQuestions(qs);
-        setScore(0);
-        setCurrentQIndex(0);
-        setShowScore(false);
-        setTimeLeft(config.time);
-    }, [items, difficulty, customMode]);
-
-    useEffect(() => {
-        if (showScore || feedback) return;
-        const timer = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev <= 1) { handleAnswer('__TIMEOUT__'); return 0; }
-                return prev - 1;
-            });
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [timeLeft, showScore, feedback]);
-
-    const handleAnswer = (option: string) => {
-        if (feedback) return;
-        const isCorrect = option === questions[currentQIndex].correct;
-        if (isCorrect) {
-            playSound('correct');
-            setScore(score + 10);
-            progressService.addXP(10);
-            setFeedback('correct');
-        } else {
-            playSound('wrong');
-            setLives(prev => prev - 1);
-            setFeedback('wrong');
-        }
-        setTimeout(() => {
-            setFeedback(null);
-            if (currentQIndex < questions.length - 1 && (lives > 1 || isCorrect)) {
-                setCurrentQIndex(currentQIndex + 1);
-                setTimeLeft(config.time);
-            } else {
-                setShowScore(true);
-                if (currentQIndex === questions.length - 1 && (lives > 0 || isCorrect)) {
-                     const finalScore = score + (isCorrect ? 10 : 0);
-                     if (onComplete) onComplete(finalScore, questions.length * 10);
-                }
-            }
-        }, 1200);
+    const stopAnimation = () => {
+        setIsAnimating(false);
+        setCurrentStroke(-1);
+        if (timerRef.current) window.clearTimeout(timerRef.current);
     };
 
-    if (items.length < 4) return <div className="text-center py-10 text-bamboo">Not enough items to generate a quiz.</div>;
-    if (questions.length === 0) return <div className="text-center py-10">Loading Quiz...</div>;
+    const startAnimation = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isAnimating) {
+            stopAnimation();
+            return;
+        }
 
-    if (showScore) {
-        const percentage = Math.round((score / (questions.length * 10)) * 100);
-        const passed = percentage >= 80;
-        return (
-            <div className="text-center py-12 animate-fade-in relative max-w-md mx-auto">
-                {passed && <CelebrationOverlay />}
-                <GlassCard className="border-t-4 border-t-hanko">
-                    <Trophy size={64} className={`mx-auto mb-4 ${passed ? 'text-straw animate-bounce' : 'text-bamboo'}`} />
-                    <h2 className="text-3xl font-bold text-ink mb-2 font-serif">{lives > 0 ? 'Quiz Completed!' : 'Game Over'}</h2>
-                    <div className="text-7xl font-bold mb-4 font-mono tracking-tighter">
-                        <span className={passed ? "text-green-600" : "text-hanko"}>{percentage}%</span>
-                    </div>
-                    {passed && <div className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-lg mb-6 font-bold border border-green-200">Lesson Mastered!</div>}
-                    <p className="text-bamboo mb-8">Score: {score} / {questions.length * 10}</p>
-                    <Button onClick={() => { setShowScore(false); setCurrentQIndex(0); setScore(0); setLives(config.lives); }} className="w-full">
-                        <RotateCw size={18} /> Retry Quiz
-                    </Button>
-                </GlassCard>
-            </div>
-        );
-    }
-    const currentQ = questions[currentQIndex];
+        setLoading(true);
+        setIsAnimating(true);
+        try {
+            const hex = item.ja.charCodeAt(0).toString(16).toLowerCase().padStart(5, '0');
+            const response = await fetch(`https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/${hex}.svg`);
+            if (!response.ok) throw new Error("Character not found in KanjiVG");
+            const text = await response.text();
+            
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "image/svg+xml");
+            const pathElements = Array.from(xmlDoc.querySelectorAll('path'));
+            const dPaths = pathElements.map(p => p.getAttribute('d') || '');
+            setPaths(dPaths);
+            
+            let step = 0;
+            const play = () => {
+                if (step >= dPaths.length) {
+                    timerRef.current = window.setTimeout(() => {
+                        setCurrentStroke(-1);
+                        step = 0;
+                        play();
+                    }, 1500);
+                    return;
+                }
+                setCurrentStroke(step);
+                step++;
+                timerRef.current = window.setTimeout(play, 800);
+            };
+            play();
+        } catch (e) {
+            console.error("Stroke data error:", e);
+            setIsAnimating(false);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        return () => { if (timerRef.current) window.clearTimeout(timerRef.current); };
+    }, []);
+
     return (
-        <div className="max-w-xl mx-auto py-4 animate-fade-in relative">
-            {feedback === 'correct' && <CelebrationOverlay />}
-            {feedback === 'wrong' && <SadOverlay />}
-            <div className="flex justify-between items-center mb-6 px-2">
-                <div className="flex gap-4">
-                    <span className="flex items-center gap-1 text-hanko bg-white/60 px-3 py-1 rounded-lg border border-hanko/10 shadow-sm"><Heart size={18} fill="currentColor" /> {lives}</span>
-                    <span className="flex items-center gap-1 text-straw bg-white/60 px-3 py-1 rounded-lg border border-straw/10 shadow-sm"><Timer size={18} /> {timeLeft}s</span>
-                </div>
-                <span className="text-bamboo font-bold text-sm bg-white/60 px-3 py-1 rounded-lg border border-bamboo/10">Q {currentQIndex + 1}/{questions.length}</span>
+        <GlassCard 
+            id={`card-${item.id}`}
+            className={`relative group hover:border-hanko/30 transition-all cursor-pointer overflow-hidden h-full flex flex-col shadow-sm bg-white/60 
+            ${isActive ? '!border-hanko !bg-white !scale-105 !shadow-2xl !z-30 !ring-4 !ring-hanko/20 -translate-y-2' : 'hover:-translate-y-1 hover:shadow-lg'}`}
+            onClick={() => speak(item.ja)}
+        >
+            <div className="absolute top-3 right-3 flex gap-2 z-20">
+                <button 
+                    onClick={startAnimation}
+                    className={`p-2 rounded-lg transition-all shadow-sm ${isAnimating ? 'bg-hanko text-white' : 'bg-white/80 text-bamboo hover:text-hanko'}`}
+                    title="Play Stroke Order"
+                >
+                    {isAnimating ? <X size={14} /> : <PenTool size={14} />}
+                </button>
             </div>
-            <GlassCard className={`text-center py-16 mb-6 border-2 transition-all duration-300 ${feedback === 'correct' ? 'border-green-500 bg-green-50 scale-105' : feedback === 'wrong' ? 'border-hanko bg-red-50 animate-pulse' : 'border-bamboo/20'}`}>
-                <h2 className="text-3xl md:text-4xl font-jp font-bold text-ink mb-4 whitespace-pre-line leading-relaxed">{currentQ.question}</h2>
-                {feedback === 'correct' && <CheckCircle className="mx-auto text-green-500 animate-bounce" size={40} />}
-                {feedback === 'wrong' && <XCircle className="mx-auto text-hanko animate-bounce" size={40} />}
-            </GlassCard>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {currentQ.options.map((opt: string, i: number) => (
-                    <Button key={i} variant="secondary" onClick={() => handleAnswer(opt)} disabled={!!feedback} className="py-5 text-lg hover:bg-rice font-jp shadow-sm">{opt}</Button>
-                ))}
+
+            <div className="flex-1 flex flex-col items-center justify-center py-6 min-h-[160px]">
+                {isAnimating ? (
+                    <div className="w-24 h-24 relative flex items-center justify-center bg-rice/50 rounded-2xl border border-bamboo/10 shadow-inner">
+                        {loading ? (
+                            <RefreshCw size={24} className="text-hanko animate-spin" />
+                        ) : (
+                            <svg viewBox="0 0 109 109" className="w-full h-full p-2">
+                                {paths.map((d, i) => (
+                                    <path key={`g-${i}`} d={d} fill="none" stroke="#e0c097" strokeWidth="3" strokeLinecap="round" opacity="0.1" />
+                                ))}
+                                {paths.map((d, i) => (
+                                    <path
+                                        key={`s-${i}`}
+                                        d={d}
+                                        fill="none"
+                                        stroke={i === currentStroke ? '#c93a40' : '#2c2421'}
+                                        strokeWidth="4"
+                                        strokeLinecap="round"
+                                        style={{
+                                            display: i <= currentStroke ? 'block' : 'none',
+                                            strokeDasharray: '1000',
+                                            strokeDashoffset: i === currentStroke ? '1000' : '0',
+                                            animation: i === currentStroke ? 'draw-stroke 0.8s forwards linear' : 'none',
+                                            opacity: i < currentStroke ? 0.6 : 1
+                                        }}
+                                    />
+                                ))}
+                            </svg>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="text-7xl font-jp font-bold text-ink mb-2 drop-shadow-sm transition-transform group-hover:scale-110">{item.ja}</div>
+                        <div className="text-xs font-bold text-hanko uppercase tracking-widest bg-hanko/5 px-2 py-0.5 rounded-full">{item.romaji}</div>
+                    </>
+                )}
             </div>
-        </div>
+
+            <div className="pt-3 border-t border-bamboo/10 mt-auto text-center pb-1">
+                <p className="text-sm font-bold text-ink/80">{item.en}</p>
+                {item.bn && <p className="text-[10px] text-bamboo mt-1 font-medium italic">🇧🇩 {item.bn}</p>}
+            </div>
+
+            <style>{`
+                @keyframes draw-stroke {
+                    from { stroke-dashoffset: 1000; }
+                    to { stroke-dashoffset: 0; }
+                }
+            `}</style>
+        </GlassCard>
     );
 };
 
-// ... (Rest of missing components stubs remain same)
+const VocabPracticeCard: React.FC<{ item: LearningItem; isActive?: boolean; isPlayingAll?: boolean }> = ({ item, isActive, isPlayingAll }) => {
+    const [isPracticing, setIsPracticing] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [sentences, setSentences] = useState<{ja: string, ro: string, en: string}[]>([]);
+    const { speak } = useSettings();
 
-const SentenceBuilderView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = () => <div className="p-8 text-center text-bamboo">Sentence Builder Game - Coming Soon!</div>;
-const MathChallengeView: React.FC<{ difficulty: Difficulty }> = () => <div className="p-8 text-center text-bamboo">Math Challenge - Coming Soon!</div>;
-const MatrixSearchView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = () => <div className="p-8 text-center text-bamboo">Matrix Search - Coming Soon!</div>;
-const WordScrambleView: React.FC<{ items: LearningItem[]; difficulty: Difficulty }> = () => <div className="p-8 text-center text-bamboo">Word Scramble - Coming Soon!</div>;
-const GameArcade: React.FC<{ section: SectionType | null; onSelectGame: (mode: ViewMode) => void }> = ({ onSelectGame }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <GlassCard hoverEffect onClick={() => onSelectGame('match')} className="cursor-pointer">
-            <h3 className="text-xl font-bold text-ink">Memory Match</h3>
-            <p className="text-bamboo">Find the matching pairs.</p>
+    const startPractice = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsPracticing(true);
+        setLoading(true);
+        try {
+            const data = await aiService.generateSentences(item.ja);
+            setSentences(data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const stopPractice = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsPracticing(false);
+        setSentences([]);
+    };
+
+    return (
+        <GlassCard 
+            key={item.id} 
+            id={`card-${item.id}`}
+            className={`relative group border-white transition-all duration-300 cursor-pointer overflow-hidden transform active:scale-95 bg-white/60 h-full flex flex-col 
+            ${isPracticing ? 'col-span-full md:col-span-2 lg:col-span-3 min-h-[400px] z-10' : 
+              isActive ? '!border-hanko !bg-white !scale-105 !shadow-2xl !z-30 !ring-4 !ring-hanko/20 -translate-y-2' : 'hover:-translate-y-1.5 shadow-sm hover:shadow-xl'}`}
+            onClick={(e) => !isPracticing ? startPractice(e) : speak(item.ja)}
+            onMouseEnter={() => { if (!isPracticing && !isPlayingAll) speak(item.ja); }}
+        >
+            {isPracticing ? (
+                <div className="flex flex-col h-full animate-fade-in">
+                    <div className="flex justify-between items-center mb-6 border-b border-bamboo/10 pb-4">
+                        <div className="flex items-center gap-3">
+                            <span className="text-3xl font-jp font-bold text-hanko">{item.ja}</span>
+                            <Badge color="bg-hanko/10 text-hanko border-hanko/20">Practice Mode</Badge>
+                        </div>
+                        <button 
+                            onClick={stopPractice}
+                            className="p-2 bg-rice hover:bg-white text-bamboo hover:text-hanko rounded-full border border-bamboo/10 transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {loading ? (
+                        <div className="flex-1 flex flex-col items-center justify-center py-10">
+                            <Loader2 className="animate-spin text-hanko mb-4" size={48} />
+                            <p className="text-bamboo font-medium">Creating 5 easy sentences for you...</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            {sentences.map((s, i) => (
+                                <div key={i} className="p-4 bg-white/60 rounded-2xl border border-bamboo/10 hover:border-hanko/20 transition-colors group/sentence">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                            <p className="text-xl font-jp font-bold text-ink mb-1">{s.ja}</p>
+                                            <p className="text-xs text-hanko font-medium mb-1">{s.ro}</p>
+                                            <p className="text-sm text-bamboo italic">{s.en}</p>
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); speak(s.ja); }}
+                                            className="p-2 text-bamboo hover:text-hanko opacity-0 group-hover/sentence:opacity-100 transition-opacity"
+                                        >
+                                            <Volume2 size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <>
+                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all pointer-events-none bg-hanko/10 text-hanko px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest">
+                        Context
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col justify-center items-center py-6 text-center">
+                        <div className="text-4xl font-jp font-bold text-ink mb-2 relative z-10 transition-transform group-hover:scale-100">{item.ja}</div>
+                        <div className="font-mono text-sm mb-3 relative z-10 text-hanko font-bold uppercase tracking-widest bg-hanko/5 px-3 py-1 rounded-full">{item.romaji}</div>
+                    </div>
+                    
+                    <div className="pt-4 border-t border-bamboo/10 relative z-10 bg-rice/30 -mx-6 -mb-6 p-6 mt-auto">
+                        <p className="text-ink font-bold text-center text-lg">{item.en}</p>
+                        {item.bn && <p className="text-xs text-bamboo mt-1 text-center font-medium opacity-80">🇧🇩 {item.bn}</p>}
+                    </div>
+                    
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-hanko/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                </>
+            )}
         </GlassCard>
-        <GlassCard hoverEffect onClick={() => onSelectGame('typing')} className="cursor-pointer">
-            <h3 className="text-xl font-bold text-ink">Typing Master</h3>
-            <p className="text-bamboo">Type the Romaji quickly.</p>
-        </GlassCard>
-    </div>
-);
+    );
+};
+
 const ConversationDetailView: React.FC<{ topic: ConversationTopic; onBack: () => void }> = ({ topic, onBack }) => {
     const { speak } = useSettings();
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in">
             <Button variant="ghost" onClick={onBack}><ArrowLeft size={18} /> Back to Topics</Button>
             <div className="border-b border-bamboo/10 pb-4">
                 <h2 className="text-3xl font-bold text-ink">{topic.title}</h2>
@@ -1275,22 +1316,19 @@ const ConversationDetailView: React.FC<{ topic: ConversationTopic; onBack: () =>
     );
 };
 
+// --- MAIN LEARNING HUB ---
+
 export const LearningHub: React.FC = () => {
-    // Helper Data
     const uniqueVocabCats = Array.from(new Set(VOCAB_DATA.map(v => v.category))).filter(Boolean) as string[];
     const uniqueKanjiCats = Array.from(new Set(KANJI_DATA.map(v => v.category))).filter(Boolean) as string[];
-    // FIX: Filter out undefined lessons and ensure type safety for sorting
     const uniqueLessons = Array.from(new Set(VOCAB_DATA.map(v => v.lesson)))
         .filter((l): l is number => typeof l === 'number')
         .sort((a,b) => a - b);
 
-    // State
     const [activeSection, setActiveSection] = useState<SectionType | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('list');
-    const [difficulty, setDifficulty] = useState<Difficulty>('medium');
     
-    // Filters
-    const [kanaSystem, setKanaSystem] = useState<'Hiragana' | 'Katakana' | 'Mixed'>('Hiragana');
+    const [kanaSystem, setKanaSystem] = useState<string>('Hiragana');
     const [kanaVar, setKanaVar] = useState<'basic' | 'dakuten' | 'youon'>('basic');
     const [lessonMode, setLessonMode] = useState<'lesson' | 'category'>('lesson');
     const [selectedLesson, setSelectedLesson] = useState(1);
@@ -1298,64 +1336,62 @@ export const LearningHub: React.FC = () => {
     const [selectedCounterGroup, setSelectedCounterGroup] = useState(COUNTER_CATEGORIES[0]);
     const [selectedNumberGroup, setSelectedNumberGroup] = useState(NUMBER_CATEGORIES[0]);
     
-    // Playback
     const [sortMethod, setSortMethod] = useState<SortMethod>('default');
     const [isPlayingAll, setIsPlayingAll] = useState(false);
+    const [activeCardId, setActiveCardId] = useState<string | null>(null); 
     
-    // Conversation
     const [selectedConversation, setSelectedConversation] = useState<ConversationTopic | null>(null);
-
-    // Data
     const [completedLessons, setCompletedLessons] = useState<string[]>([]);
-    
-    // Context
+    const [scrollY, setScrollY] = useState(0);
+
     const { speak, isPaused, pauseAudio, resumeAudio, stopAudio } = useSettings();
 
     useEffect(() => {
         setCompletedLessons(progressService.getCompletedLessons());
+        const handleScroll = () => {
+            requestAnimationFrame(() => setScrollY(window.scrollY));
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // Cleanup playback on unmount or mode switch
     useEffect(() => {
         return () => {
             if (isPlayingAll) {
                 stopAudio();
                 setIsPlayingAll(false);
+                setActiveCardId(null);
             }
         };
-    }, [viewMode, activeSection]);
+    }, [viewMode, activeSection, isPlayingAll, stopAudio]);
 
     const handleLessonComplete = (score: number, total: number) => {
         if (score / total >= 0.8) {
-             // Mark lesson complete
              if (activeSection === 'grammar') progressService.markLessonComplete(`grammar-lesson-${selectedLesson}`);
              if (activeSection === 'vocab' && lessonMode === 'lesson') progressService.markLessonComplete(`vocab-lesson-${selectedLesson}`);
              setCompletedLessons(progressService.getCompletedLessons());
         }
     };
 
-    const getContent = () => {
-        let items: LearningItem[] = [];
+    const currentContent = useMemo(() => {
+        let items: (LearningItem | ExtendedLearningItem)[] = [];
         switch(activeSection) {
             case 'kana':
-                if (kanaSystem === 'Mixed') items = KANA_DATA.filter(k => k.variation === kanaVar);
-                else items = KANA_DATA.filter(k => k.category === kanaSystem && k.variation === kanaVar);
+                if (kanaSystem === 'Mixed') {
+                    const hItems = KANA_DATA.filter(k => k.category === 'Hiragana' && k.variation === kanaVar);
+                    items = hItems.map(h => {
+                        const kItem = KANA_DATA.find(k => k.category === 'Katakana' && k.variation === kanaVar && k.romaji === h.romaji);
+                        return { ...h, kanaPair: kItem ? kItem.ja : '', type: 'kana' } as ExtendedLearningItem;
+                    });
+                } else {
+                    items = KANA_DATA.filter(k => k.category === kanaSystem && k.variation === kanaVar);
+                }
                 break;
-            case 'vocab':
-                items = VOCAB_DATA.filter(v => lessonMode === 'lesson' ? v.lesson === selectedLesson : v.category === selectedCategory);
-                break;
-            case 'kanji':
-                items = KANJI_DATA.filter(k => lessonMode === 'lesson' ? k.lesson === selectedLesson : k.category === selectedCategory);
-                break;
-            case 'grammar':
-                items = GRAMMAR_DATA.filter(g => g.lesson === selectedLesson);
-                break;
-            case 'counter':
-                items = COUNTER_DATA.filter(c => c.group === selectedCounterGroup);
-                break;
-            case 'number':
-                items = NUMBER_DATA.filter(n => n.group === selectedNumberGroup);
-                break;
+            case 'vocab': items = VOCAB_DATA.filter(v => lessonMode === 'lesson' ? v.lesson === selectedLesson : v.category === selectedCategory); break;
+            case 'kanji': items = KANJI_DATA.filter(k => lessonMode === 'lesson' ? k.lesson === selectedLesson : k.category === selectedCategory); break;
+            case 'grammar': items = GRAMMAR_DATA.filter(g => g.lesson === selectedLesson); break;
+            case 'counter': items = COUNTER_DATA.filter(c => c.group === selectedCounterGroup); break;
+            case 'number': items = NUMBER_DATA.filter(n => n.group === selectedNumberGroup); break;
             case 'synonym': items = SYNONYM_DATA; break;
             case 'antonym': items = ANTONYM_DATA; break;
             case 'listening': items = LISTENING_DATA; break;
@@ -1363,32 +1399,22 @@ export const LearningHub: React.FC = () => {
             default: items = [];
         }
     
-        // Apply Sorting
         const sorted = [...items];
         if (sortMethod === 'az') return sorted.sort((a,b) => a.romaji.localeCompare(b.romaji));
         if (sortMethod === 'length') return sorted.sort((a,b) => a.ja.length - b.ja.length);
         if (sortMethod === 'random') return sorted.sort(() => 0.5 - Math.random());
-        if (sortMethod === 'serial') return items; // Default array order
-        
-        return sorted; // Default
-    };
-    
-    const currentContent = getContent();
+        if (sortMethod === 'serial') return items; 
+        return sorted; 
+    }, [activeSection, kanaSystem, kanaVar, lessonMode, selectedLesson, selectedCategory, selectedCounterGroup, selectedNumberGroup, sortMethod]);
 
     useEffect(() => { 
-        if (activeSection === 'conversation') {
-            setViewMode('conversation'); 
-        } else if (activeSection === 'listening') {
-            setViewMode('listening_drill');
-        } else {
-            setViewMode('list'); 
-        }
+        if (activeSection === 'conversation') setViewMode('conversation'); 
+        else if (activeSection === 'listening') setViewMode('listening_drill');
+        else setViewMode('list'); 
     }, [activeSection]);
   
-    // Playback Logic
     const isPlayingRef = useRef(false);
     const isPausedRef = useRef(false);
-
     useEffect(() => { isPlayingRef.current = isPlayingAll; }, [isPlayingAll]);
     useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
@@ -1396,65 +1422,53 @@ export const LearningHub: React.FC = () => {
         if (isPlayingAll) {
             stopAudio();
             setIsPlayingAll(false);
+            isPlayingRef.current = false;
+            setActiveCardId(null);
             return;
         }
-  
         setIsPlayingAll(true);
-        
+        isPlayingRef.current = true;
         for (const item of currentContent) {
             if (!isPlayingRef.current) break;
-            
-            // Wait while paused
-            while (isPausedRef.current && isPlayingRef.current) {
-                await new Promise(r => setTimeout(r, 200));
-            }
+            while (isPausedRef.current && isPlayingRef.current) await new Promise(r => setTimeout(r, 200));
             if (!isPlayingRef.current) break;
-
+            setActiveCardId(item.id);
+            await new Promise(r => setTimeout(r, 100));
+            const element = document.getElementById(`card-${item.id}`);
+            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             await speak(item.ja);
-            
-            // Wait while paused (check again after speaking)
-            while (isPausedRef.current && isPlayingRef.current) {
-                await new Promise(r => setTimeout(r, 200));
-            }
+            while (isPausedRef.current && isPlayingRef.current) await new Promise(r => setTimeout(r, 200));
             if (!isPlayingRef.current) break;
-
-            // Gap between words
-            await new Promise(r => setTimeout(r, 1500)); 
+            await new Promise(r => setTimeout(r, 1000)); 
         }
         setIsPlayingAll(false);
+        isPlayingRef.current = false;
+        setActiveCardId(null);
     };
     
-    // Define games per section
     const getAvailableModes = () => {
-        const base = [
-            { id: 'list', label: 'List', icon: BookOpen },
-            { id: 'flashcard', label: 'Flashcards', icon: Layers },
-            { id: 'quiz', label: 'Quiz', icon: HelpCircle },
+        if (activeSection === 'conversation') return []; 
+        if (activeSection === 'listening') return []; 
+        
+        const modes = [
+            { id: 'list', label: 'List', icon: ListOrdered },
+            { id: 'flashcard', label: 'Flashcard', icon: Layers },
+            { id: 'quiz', label: 'Quiz', icon: HelpCircle }
         ];
-  
-        if (activeSection === 'conversation') return []; // Handled separately
-        if (activeSection === 'listening') return []; // Dedicated view
-  
-        // Add Story & Song Generator for Vocab/Kanji
+
         if (['vocab', 'kanji'].includes(activeSection || '')) {
-            base.push({ id: 'story', label: 'Story Generator', icon: Wand2 });
-            base.push({ id: 'song', label: 'AI Song Generator', icon: Music });
+            modes.push({ id: 'story', label: 'Story', icon: Wand2 });
+            modes.push({ id: 'song', label: 'Song', icon: Music });
         }
-  
-        // Add Universal Games Tab to ALL sections
-        return [
-            ...base,
-            { id: 'games', label: 'Games Arcade', icon: Gamepad2 }
-        ];
+
+        return modes;
     };
     
-    // Helper to check completion
     const isComplete = (id: string) => completedLessons.includes(id);
 
-    // --- MAIN MENU RENDER ---
     if (!activeSection) {
         const menus = [
-            { id: 'kana', title: 'Hiragana & Katakana', desc: 'The foundation of Japanese writing.', icon: Languages, color: 'text-hanko', bg: 'bg-hanko/10', border: 'border-hanko/20' },
+            { id: 'kana', title: 'Hiragana & Katakana', desc: 'Master the native Japanese syllabary (Basic, Dakuten, Youon).', icon: Languages, color: 'text-hanko', bg: 'bg-hanko/10', border: 'border-hanko/20' },
             { id: 'listening', title: 'Listening Practice', desc: 'Train your ears with native audio.', icon: Ear, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-200' },
             { id: 'conversation', title: 'Conversation Dojo', desc: 'Real-life scenarios & dialogues.', icon: MessageCircle, color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200' },
             { id: 'formal_informal', title: 'Formal vs Informal', desc: 'Polite (Desu/Masu) vs Casual forms.', icon: Scale, color: 'text-orange-600', bg: 'bg-orange-100', border: 'border-orange-200' },
@@ -1468,12 +1482,14 @@ export const LearningHub: React.FC = () => {
         ];
   
         return (
-            <div className="space-y-10">
-                <div className="text-center max-w-2xl mx-auto">
+            <div className="space-y-10 relative">
+                <div className="fixed top-32 left-[5%] text-9xl text-bamboo/5 font-jp font-bold pointer-events-none z-0" style={{ transform: `translateY(${scrollY * 0.15}px) rotate(15deg)` }}>あ</div>
+                <div className="fixed bottom-32 right-[8%] text-9xl text-hanko/5 font-jp font-bold pointer-events-none z-0" style={{ transform: `translateY(${scrollY * -0.1}px) rotate(-10deg)` }}>カ</div>
+                <div className="text-center max-w-2xl mx-auto relative z-10">
                     <h1 className="text-4xl font-bold text-ink mb-3 font-serif">Learning Hub</h1>
                     <p className="text-lg text-bamboo">Choose a category to begin your training.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
                     {menus.map(m => (
                         <GlassCard key={m.id} hoverEffect onClick={() => setActiveSection(m.id as SectionType)} className={`cursor-pointer group border-t-4 ${m.border.replace('border-', 'border-t-')}`}>
                             <div className={`w-14 h-14 rounded-2xl ${m.bg} ${m.color} flex items-center justify-center mb-5 transition-transform group-hover:scale-110 shadow-sm`}>
@@ -1488,7 +1504,6 @@ export const LearningHub: React.FC = () => {
         );
     }
   
-    // --- CONVERSATION VIEW RENDER ---
     if (activeSection === 'conversation') {
         if (selectedConversation) {
             return <ConversationDetailView topic={selectedConversation} onBack={() => setSelectedConversation(null)} />;
@@ -1536,18 +1551,16 @@ export const LearningHub: React.FC = () => {
     }
   
     return (
-      <div className="space-y-6 animate-fade-in">
-          <div className="flex flex-col xl:flex-row items-start xl:items-center gap-4 border-b border-bamboo/10 pb-4 justify-between">
+      <div className="space-y-6 animate-fade-in relative">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center gap-4 border-b border-bamboo/10 pb-4 justify-between relative z-10">
               <div className="flex items-center gap-4">
-                  <Button variant="ghost" onClick={() => setActiveSection(null)} className="p-2 h-auto"><ArrowLeft size={20} /></Button>
+                  <Button variant="ghost" onClick={() => { setActiveSection(null); setViewMode('list'); }} className="p-2 h-auto text-bamboo hover:bg-white/50"><ArrowLeft size={20} /></Button>
                   <div>
                       <h1 className="text-2xl font-bold text-ink capitalize font-serif">{activeSection === 'kana' ? 'Kana Systems' : activeSection?.replace('_', ' ')}</h1>
-                      <p className="text-sm text-bamboo">Select a game mode</p>
+                      <p className="text-sm text-bamboo">Current Mode: {viewMode.replace('_', ' ')}</p>
                   </div>
               </div>
-              
-              {/* Mode Selectors (Hidden for Listening/Conversation) */}
-              {activeSection !== 'listening' && (
+              {activeSection !== 'listening' && activeSection !== 'conversation' && (
                   <div className="flex flex-wrap gap-2 bg-white/40 p-1.5 rounded-xl border border-bamboo/10">
                        {getAvailableModes().map(m => (
                            <button key={m.id} onClick={() => setViewMode(m.id as any)} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all ${viewMode === m.id ? 'bg-hanko text-white shadow-lg' : 'text-bamboo hover:text-hanko hover:bg-white/60'}`}>
@@ -1558,242 +1571,148 @@ export const LearningHub: React.FC = () => {
               )}
           </div>
   
-          <GlassCard className="py-6 border-t-4 border-t-bamboo/20">
-              {/* Filters UI */}
-              {activeSection === 'kana' && viewMode !== 'games' && (
-                  <div className="flex flex-col md:flex-row gap-6">
-                      <div className="flex gap-2 bg-white/40 p-1 rounded-xl border border-bamboo/10">
-                          {['Hiragana', 'Katakana', 'Mixed'].map(sys => <button key={sys} onClick={() => setKanaSystem(sys as any)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${kanaSystem === sys ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>{sys}</button>)}
-                      </div>
-                      <div className="flex items-center gap-3">
-                           <span className="text-bamboo font-bold text-sm hidden md:block uppercase tracking-widest">Variation</span>
-                           <div className="flex gap-2">{['basic', 'dakuten', 'youon'].map(v => <Button key={v} variant={kanaVar === v ? 'primary' : 'secondary'} size="sm" onClick={() => setKanaVar(v as any)} className="capitalize">{v}</Button>)}</div>
-                      </div>
-                  </div>
-              )}
-              
-              {(activeSection === 'vocab' || activeSection === 'kanji') && (
-                  <div className="flex flex-col md:flex-row gap-6 items-center flex-wrap">
-                      <div className="flex gap-2 bg-white/40 p-1 rounded-xl border border-bamboo/10">
-                          <button onClick={() => setLessonMode('lesson')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'lesson' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>Lesson Wise</button>
-                          <button onClick={() => setLessonMode('category')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${lessonMode === 'category' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:text-hanko'}`}>Category Wise</button>
-                      </div>
-                      <select 
-                          className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko focus:ring-2 focus:ring-hanko/10 transition-all font-medium" 
-                          value={lessonMode === 'lesson' ? selectedLesson : selectedCategory} 
-                          onChange={(e) => lessonMode === 'lesson' ? setSelectedLesson(Number(e.target.value)) : setSelectedCategory(e.target.value)}
-                      >
-                          {lessonMode === 'lesson' ? uniqueLessons.map(l => (
-                              <option key={l} value={l} className={isComplete(`${activeSection}-lesson-${l}`) ? "bg-green-100 font-bold text-green-700" : ""}>
-                                  Lesson {l} {isComplete(`${activeSection}-lesson-${l}`) ? '✅' : ''}
-                              </option>
-                          )) : (activeSection === 'vocab' ? uniqueVocabCats : uniqueKanjiCats).map(c => (
-                              <option key={c} value={c} className={isComplete(`${activeSection}-cat-${c}`) ? "bg-green-100 font-bold text-green-700" : ""}>
-                                  {c} {isComplete(`${activeSection}-cat-${c}`) ? '✅' : ''}
-                              </option>
-                          ))}
-                      </select>
-                  </div>
-              )}
-              
-              {/* Sorting & Action Controls */}
-              {viewMode === 'list' && activeSection !== 'formal_informal' && (
-                  <div className="mt-6 pt-4 border-t border-bamboo/10 flex flex-wrap gap-4 items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold uppercase text-bamboo/60 tracking-widest mr-2">Sort</span>
-                        <div className="flex gap-1.5 p-1 bg-white/40 border border-bamboo/10 rounded-xl">
-                            <button 
-                                onClick={() => setSortMethod(sortMethod === 'az' ? 'default' : 'az')}
-                                className={`p-2 rounded-lg transition-all ${sortMethod === 'az' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white'}`}
-                                title="Sort A-Z"
-                            >
-                                <SortAsc size={16} />
-                            </button>
-                            <button 
-                                onClick={() => setSortMethod(sortMethod === 'length' ? 'default' : 'length')}
-                                className={`p-2 rounded-lg transition-all ${sortMethod === 'length' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white'}`}
-                                title="Sort by Length"
-                            >
-                                <Scale size={16} />
-                            </button>
-                            <button 
-                                onClick={() => setSortMethod(sortMethod === 'random' ? 'default' : 'random')}
-                                className={`p-2 rounded-lg transition-all ${sortMethod === 'random' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white'}`}
-                                title="Randomize"
-                            >
-                                <Shuffle size={16} />
-                            </button>
-                            <button 
-                                onClick={() => setSortMethod(sortMethod === 'serial' ? 'default' : 'serial')}
-                                className={`p-2 rounded-lg transition-all ${sortMethod === 'serial' ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white'}`}
-                                title="Serial Order"
-                            >
-                                <ListOrdered size={16} />
-                            </button>
-                        </div>
-                      </div>
-                      
-                      <div className="h-8 w-px bg-bamboo/20 hidden md:block"></div>
-                      
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold uppercase text-bamboo/60 tracking-widest mr-1">Playback</span>
-                        {isPlayingAll ? (
-                            <div className="flex gap-2">
-                                <Button size="sm" variant="secondary" onClick={() => { pauseAudio(); }}>
-                                    <Pause size={14} fill="currentColor" /> Pause
-                                </Button>
-                                <Button size="sm" variant="danger" onClick={() => { stopAudio(); setIsPlayingAll(false); }}>
-                                    <Square size={14} fill="currentColor" /> Stop
-                                </Button>
+          {activeSection === 'kana' && (
+              <>
+                {viewMode === 'list' && (
+                    <div className="space-y-6">
+                        <div className="flex gap-4 p-2 bg-white/40 rounded-2xl border border-bamboo/10 relative z-10">
+                            <div className="flex gap-1 p-1 bg-white/40 rounded-xl border border-bamboo/5 shadow-inner">
+                                {['Hiragana', 'Katakana', 'Mixed'].map(sys => <button key={sys} onClick={() => setKanaSystem(sys as any)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${kanaSystem === sys ? 'bg-hanko text-white shadow-md' : 'text-bamboo hover:text-hanko hover:bg-white/60'}`}>{sys}</button>)}
                             </div>
-                        ) : (
-                            <Button 
-                                size="sm" 
-                                variant="secondary" 
-                                onClick={() => { handlePlayAll(); }}
-                                className="group hover:bg-hanko hover:text-white transition-all shadow-sm"
-                            >
-                                <Volume2 size={16} className="group-hover:animate-pulse" /> Listen All Sequence
-                            </Button>
-                        )}
-                      </div>
-                  </div>
-              )}
-              
-              {activeSection === 'grammar' && (
-                  <div className="flex items-center gap-4">
-                      <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Select Lesson</span>
-                      <select 
-                          className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko transition-all font-medium" 
-                          value={selectedLesson} 
-                          onChange={(e) => setSelectedLesson(Number(e.target.value))}
-                      >
-                          {uniqueLessons.map(l => (
-                              <option key={l} value={l} className={isComplete(`grammar-lesson-${l}`) ? "bg-green-100 font-bold text-green-700" : ""}>
-                                  Lesson {l} {isComplete(`grammar-lesson-${l}`) ? '✅' : ''}
-                              </option>
-                          ))}
-                      </select>
-                  </div>
-              )}
-              {activeSection === 'counter' && (
-                  <div className="flex items-center gap-4">
-                       <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Category</span>
-                       <select className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko w-full md:w-64" value={selectedCounterGroup} onChange={(e) => setSelectedCounterGroup(e.target.value)}>{COUNTER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select>
-                  </div>
-              )}
-              {activeSection === 'number' && (
-                  <div className="flex items-center gap-4">
-                       <span className="text-bamboo font-bold uppercase tracking-widest text-sm">Category</span>
-                       <select className="bg-white/60 text-ink border border-bamboo/20 rounded-xl px-4 py-2 outline-none focus:border-hanko w-full md:w-64" value={selectedNumberGroup} onChange={(e) => setSelectedNumberGroup(e.target.value)}>{NUMBER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select>
-                  </div>
-              )}
-              {activeSection === 'listening' && (
-                  <div className="text-bamboo">
-                      Listen to the phrase and guess the meaning.
-                  </div>
-              )}
-              {activeSection === 'formal_informal' && (
-                  <div className="text-bamboo">
-                      Compare Polite (Desu/Masu) and Casual forms.
-                  </div>
-              )}
-          </GlassCard>
-  
-          {viewMode === 'listening_drill' && <ListeningDrillView items={currentContent} />}
-  
-          {viewMode === 'list' && (
-              <div className={`grid gap-5 ${activeSection === 'kana' ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-                  {currentContent.map((item) => (
-                      activeSection === 'kanji' ? (
-                          <KanjiCard key={item.id} item={item} />
-                      ) : activeSection === 'vocab' ? (
-                          <VocabPracticeCard key={item.id} item={item} />
-                      ) : (
-                          <GlassCard 
-                            key={item.id} 
-                            className={`relative group border-white transition-all duration-300 cursor-pointer overflow-hidden transform active:scale-95 ${activeSection === 'kana' ? 'aspect-square flex flex-col items-center justify-center p-0' : 'hover:-translate-y-1.5 shadow-sm hover:shadow-xl'}`}
-                            onClick={() => { speak(item.ja); }}
-                          >
-                              
-                              {/* Pronunciation Guide */}
-                              {activeSection === 'kana' && (
-                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                      <div className="bg-hanko text-white p-1 rounded-lg shadow-sm">
-                                          <Volume2 size={12} />
-                                      </div>
-                                  </div>
-                              )}
-      
-                              {activeSection !== 'kana' && <div className="absolute top-4 right-4 text-[10px] text-bamboo/40 uppercase tracking-widest font-black border border-bamboo/10 px-1.5 py-0.5 rounded pointer-events-none">{item.type.replace('_', ' ')}</div>}
-                              
-                              {activeSection === 'formal_informal' ? (
-                                  <div className="flex gap-4">
-                                      <div className="flex-1 border-r border-bamboo/10 pr-4">
-                                          <div className="text-xs text-hanko uppercase font-bold mb-1"><Briefcase size={10} className="inline mr-1"/> Polite</div>
-                                          <div className="text-xl font-jp font-bold text-ink">{item.ja}</div>
-                                      </div>
-                                      <div className="flex-1 pl-1">
-                                          <div className="text-xs text-bamboo uppercase font-bold mb-1"><Coffee size={10} className="inline mr-1"/> Casual</div>
-                                          <div className="text-xl font-jp font-bold text-ink/80">{item.romaji}</div>
-                                      </div>
-                                  </div>
-                              ) : activeSection === 'kana' && kanaSystem === 'Mixed' ? (
-                                  <div className="flex flex-col items-center justify-center relative z-10">
-                                      <div className="flex items-center justify-center gap-6 transition-transform duration-300 group-hover:scale-110">
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-[10px] font-bold text-bamboo uppercase tracking-tighter mb-1 opacity-60">Hiragana</span>
-                                            <span className="text-5xl font-jp font-bold text-ink drop-shadow-sm" title="Hiragana">{item.ja.split('　')[0]}</span>
+                            <div className="flex items-center gap-1">
+                                {['basic', 'dakuten', 'youon'].map(v => <button key={v} onClick={() => setKanaVar(v as any)} className={`px-3 py-1 rounded-md text-xs font-bold capitalize transition-all ${kanaVar === v ? 'bg-hanko text-white shadow-sm' : 'text-bamboo hover:bg-white/50'}`}>{v}</button>)}
+                            </div>
+                            <div className="ml-auto flex items-center gap-4">
+                                {isPlayingAll ? <Button size="sm" variant="danger" onClick={handlePlayAll}><Square size={14} fill="currentColor" /> Stop</Button> : <Button size="sm" variant="secondary" onClick={handlePlayAll}><Volume2 size={14} /> Listen</Button>}
+                            </div>
+                        </div>
+                        <div className={`grid gap-4 ${kanaSystem === 'Mixed' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-6'}`}>
+                            {currentContent.map((item) => {
+                                const extendedItem = item as ExtendedLearningItem;
+                                const isMixed = !!extendedItem.kanaPair;
+                                // Check if item is a combination sound (Youon) like 'kya', 'shu' which has length > 1
+                                const isYouon = item.ja.length > 1; 
+                                
+                                return (
+                                    <GlassCard 
+                                        key={item.id} 
+                                        id={`card-${item.id}`}
+                                        className={`group relative flex flex-col items-center justify-center transition-all duration-300 cursor-pointer overflow-hidden 
+                                            ${isMixed ? 'aspect-[2/1] py-4' : 'aspect-square'}
+                                            ${activeCardId === item.id 
+                                                ? '!border-hanko !border-2 !bg-white !scale-105 !shadow-2xl !z-50 !ring-4 !ring-hanko/20 -translate-y-2' 
+                                                : 'hover:-translate-y-1 hover:shadow-lg hover:border-hanko/30 bg-white/60'}
+                                        `}
+                                        onClick={() => speak(item.ja)}
+                                    >
+                                        <div className="absolute inset-0 washi-texture opacity-30 pointer-events-none" />
+                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-bamboo/50">
+                                            <Volume2 size={16} />
                                         </div>
-                                        <div className="w-px h-12 bg-bamboo/20"></div>
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-[10px] font-bold text-hanko uppercase tracking-tighter mb-1 opacity-60">Katakana</span>
-                                            <span className="text-5xl font-jp font-bold text-ink drop-shadow-sm" title="Katakana">{item.ja.split('　')[1]}</span>
+
+                                        {isMixed ? (
+                                            <div className="flex items-center justify-around w-full px-4 relative z-10">
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-[9px] font-black text-bamboo/40 uppercase tracking-widest mb-1">Hiragana</span>
+                                                    <div className={`${isYouon ? 'text-4xl md:text-5xl tracking-tighter' : 'text-5xl md:text-6xl'} font-jp font-bold text-ink drop-shadow-sm transition-transform group-hover:scale-110`}>{item.ja}</div>
+                                                </div>
+                                                <div className="h-12 w-px bg-gradient-to-b from-transparent via-bamboo/20 to-transparent mx-2"></div>
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-1">Katakana</span>
+                                                    <div className={`${isYouon ? 'text-4xl md:text-5xl tracking-tighter' : 'text-5xl md:text-6xl'} font-jp font-bold text-blue-600 drop-shadow-sm transition-transform group-hover:scale-110`}>{extendedItem.kanaPair}</div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className={`relative z-10 ${isYouon ? 'text-5xl md:text-6xl tracking-tighter' : 'text-6xl md:text-7xl'} font-jp font-bold mb-2 drop-shadow-sm transition-transform duration-300 group-hover:scale-110 ${item.category === 'Katakana' ? 'text-blue-600' : 'text-ink'}`}>
+                                                {item.ja}
+                                            </div>
+                                        )}
+                                        
+                                        <div className={`relative z-10 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full mt-2 shadow-sm border ${item.category === 'Katakana' ? 'text-blue-600 bg-blue-50 border-blue-100' : 'text-hanko bg-orange-50 border-orange-100'}`}>
+                                            {item.romaji}
                                         </div>
-                                      </div>
-                                      <div className="mt-4 font-mono text-sm font-bold text-bamboo/40 uppercase tracking-widest">{item.romaji}</div>
-                                  </div>
-                              ) : activeSection === 'kana' ? (
-                                  <div className="relative z-10 flex flex-col items-center">
-                                      <div className="text-6xl font-jp font-bold text-ink transition-transform duration-300 group-hover:scale-110 group-hover:text-hanko">{item.ja}</div>
-                                      <div className="mt-2 font-mono text-sm font-bold text-bamboo/40 group-hover:text-bamboo/70 uppercase tracking-widest">{item.romaji}</div>
-                                  </div>
-                              ) : (
-                                  <div className="pt-2">
-                                      <div className="text-4xl font-jp font-bold text-ink mb-2 relative z-10">{item.ja}</div>
-                                      <div className={`font-mono text-lg mb-3 relative z-10 uppercase tracking-widest ${activeSection === 'synonym' || activeSection === 'antonym' ? 'text-xl text-straw font-jp' : 'text-bamboo/60'}`}>{item.romaji}</div>
-                                  </div>
-                              )}
-                              
-                              {activeSection !== 'kana' && (
-                                  <div className="pt-4 border-t border-bamboo/5 relative z-10">
-                                      <p className="text-ink/80 font-medium leading-tight">{item.en}</p>
-                                      {item.bn && <p className="text-xs text-bamboo mt-2 italic font-serif">🇧🇩 {item.bn}</p>}
-                                      {item.usage && <p className="text-[11px] text-bamboo mt-3 bg-rice/50 p-2.5 rounded-lg border border-bamboo/5 leading-relaxed">Ex: <span className="text-ink/70 font-jp">{item.usage}</span></p>}
-                                  </div>
-                              )}
-    
-                              {/* Hover Sheen */}
-                              <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-hanko/5 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                          </GlassCard>
-                      )
-                  ))}
-                  {currentContent.length === 0 && <div className="col-span-full text-center py-20 text-bamboo bg-white/40 border-2 border-dashed border-bamboo/10 rounded-3xl">No content found for this selection.</div>}
-              </div>
+                                    </GlassCard>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {viewMode === 'quiz' && (
+                    <div className="space-y-8 max-w-4xl mx-auto">
+                        <KanaQuizView items={currentContent} onExit={() => setViewMode('list')} />
+                    </div>
+                )}
+
+                {viewMode === 'flashcard' && <FlashcardView items={currentContent} />}
+                
+                {viewMode === 'particle' && <QuizView items={currentContent} customMode="particle" onComplete={handleLessonComplete} />}
+                
+                {viewMode === 'story' && <LessonStoryView items={currentContent} />}
+                
+                {viewMode === 'song' && <LessonSongView items={currentContent} />}
+              </>
           )}
-  
-          {viewMode === 'flashcard' && <FlashcardView items={currentContent} />}
-          {viewMode === 'quiz' && <QuizView items={currentContent} difficulty={difficulty} onComplete={handleLessonComplete} />}
-          {viewMode === 'particle' && <QuizView items={currentContent} difficulty={difficulty} customMode="particle" onComplete={handleLessonComplete} />}
-          {viewMode === 'match' && <MemoryMatchGame items={currentContent} onExit={() => setViewMode('games')} />}
-          {viewMode === 'typing' && <TypingMasterGame items={currentContent} onExit={() => setViewMode('games')} />}
-          {viewMode === 'builder' && <SentenceBuilderView items={currentContent} difficulty={difficulty} />}
-          {viewMode === 'math' && <MathChallengeView difficulty={difficulty} />}
-          {viewMode === 'matrix' && <MatrixSearchView items={currentContent} difficulty={difficulty} />}
-          {viewMode === 'scramble' && <WordScrambleView items={currentContent} difficulty={difficulty} />}
-          {viewMode === 'story' && <LessonStoryView items={currentContent} />}
-          {viewMode === 'song' && <LessonSongView items={currentContent} />}
-          {viewMode === 'games' && <GameArcade section={activeSection} onSelectGame={setViewMode} />}
+
+          {activeSection !== 'kana' && (
+              <>
+                {viewMode === 'list' && (
+                    <div className="space-y-6">
+                        {activeSection === 'vocab' && (
+                            <div className="flex items-center gap-4 p-2 bg-white/40 rounded-2xl border border-bamboo/10 overflow-x-auto">
+                                <div className="flex p-1 bg-white/40 rounded-xl border border-bamboo/5 shadow-inner">
+                                    <button onClick={() => setLessonMode('lesson')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${lessonMode === 'lesson' ? 'bg-hanko text-white shadow-md' : 'text-bamboo hover:text-hanko'}`}>By Lesson</button>
+                                    <button onClick={() => setLessonMode('category')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${lessonMode === 'category' ? 'bg-hanko text-white shadow-md' : 'text-bamboo hover:text-hanko'}`}>By Category</button>
+                                </div>
+                                
+                                {lessonMode === 'lesson' ? (
+                                    <select value={selectedLesson} onChange={(e) => setSelectedLesson(Number(e.target.value))} className="bg-white border border-bamboo/20 rounded-lg px-3 py-1.5 text-sm font-bold text-ink outline-none">
+                                        {uniqueLessons.map(l => (
+                                            <option key={l} value={l}>Lesson {l} {isComplete(`vocab-lesson-${l}`) ? '✓' : ''}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-white border border-bamboo/20 rounded-lg px-3 py-1.5 text-sm font-bold text-ink outline-none">
+                                        {Array.from(new Set(VOCAB_DATA.map(v => v.category))).filter(Boolean).sort().map(c => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                    </select>
+                                )}
+                                
+                                <div className="ml-auto flex gap-2">
+                                     <button onClick={() => setSortMethod(sortMethod === 'az' ? 'default' : 'az')} className={`p-2 rounded-lg transition-all ${sortMethod === 'az' ? 'bg-hanko text-white' : 'bg-white text-bamboo hover:text-hanko'}`} title="Sort A-Z"><SortAsc size={16} /></button>
+                                     <button onClick={handlePlayAll} className={`p-2 rounded-lg transition-all ${isPlayingAll ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-bamboo hover:text-hanko'}`} title="Play All"><Volume2 size={16} /></button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className={`grid gap-4 ${activeSection === 'kanji' ? 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+                            {currentContent.map((item) => (
+                                activeSection === 'kanji' ? <KanjiCard key={item.id} item={item} isActive={activeCardId === item.id} /> :
+                                activeSection === 'vocab' ? <VocabPracticeCard key={item.id} item={item} isActive={activeCardId === item.id} /> :
+                                <GlassCard key={item.id} id={`card-${item.id}`} className={`relative group transition-all cursor-pointer ${activeCardId === item.id ? 'border-hanko scale-105 shadow-xl z-10' : 'hover:border-hanko/30'}`} onClick={() => speak(item.ja)}>
+                                    <div className="text-3xl font-jp font-bold text-ink mb-2">{item.ja}</div>
+                                    <div className="text-hanko font-medium mb-3">{item.romaji}</div>
+                                    <div className="pt-3 border-t border-bamboo/10"><p className="text-ink/80">{item.en}</p></div>
+                                </GlassCard>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {viewMode === 'flashcard' && <FlashcardView items={currentContent} />}
+                
+                {viewMode === 'quiz' && <QuizView items={currentContent} onComplete={handleLessonComplete} />}
+                
+                {viewMode === 'particle' && <QuizView items={currentContent} customMode="particle" onComplete={handleLessonComplete} />}
+                
+                {viewMode === 'story' && <LessonStoryView items={currentContent} />}
+                
+                {viewMode === 'song' && <LessonSongView items={currentContent} />}
+                
+                {viewMode === 'listening_drill' && <ListeningDrillView items={currentContent} />}
+              </>
+          )}
       </div>
     );
 };

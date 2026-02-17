@@ -8,7 +8,7 @@ export const AdminContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'vocab' | 'kanji' | 'grammar'>('vocab');
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-ink mb-2">Content Manager</h1>

@@ -49,6 +49,14 @@ export interface LearningItem {
   antonym?: string;
 }
 
+export interface SRSItemState {
+  id: string;
+  nextReview: number; // Timestamp
+  interval: number;   // Days
+  easeFactor: number; // Multiplier
+  streak: number;
+}
+
 export interface QuizQuestion {
   id: string;
   question: string;

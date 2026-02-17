@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { GlassCard, Button, Badge } from '../components/UI';
+import { GlassCard, Button, Badge, WonderCard } from '../components/UI';
 import { BookOpen, RefreshCw, Wand2, HelpCircle } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { StoryContent } from '../types';
@@ -10,7 +11,14 @@ export const ReadingRoom: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showEnglish, setShowEnglish] = useState(false);
 
-  const topics = ['School Life', 'Shopping', 'Travel to Tokyo', 'Cooking', 'Anime Club', 'Rainy Day'];
+  const topics = [
+      { t: 'School Life', color: 'bg-blue-50 border-blue-200 text-blue-800' },
+      { t: 'Shopping', color: 'bg-pink-50 border-pink-200 text-pink-800' },
+      { t: 'Travel to Tokyo', color: 'bg-green-50 border-green-200 text-green-800' },
+      { t: 'Cooking', color: 'bg-orange-50 border-orange-200 text-orange-800' },
+      { t: 'Anime Club', color: 'bg-purple-50 border-purple-200 text-purple-800' },
+      { t: 'Rainy Day', color: 'bg-slate-50 border-slate-200 text-slate-800' }
+  ];
 
   const generate = async (selectedTopic: string) => {
     setLoading(true);
@@ -27,7 +35,7 @@ export const ReadingRoom: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-3xl font-bold text-ink mb-2">Reading Room</h1>
@@ -37,16 +45,16 @@ export const ReadingRoom: React.FC = () => {
 
       {!story && !loading && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
-            {topics.map(t => (
-                <GlassCard 
-                    key={t} 
-                    hoverEffect 
-                    onClick={() => { setTopic(t); generate(t); }}
-                    className="flex flex-col items-center justify-center py-10 cursor-pointer border-bamboo/20 group"
+            {topics.map(item => (
+                <WonderCard 
+                    key={item.t} 
+                    colorClass={item.color}
+                    onClick={() => { setTopic(item.t); generate(item.t); }}
+                    className="flex flex-col items-center justify-center py-10 cursor-pointer group"
                 >
-                    <BookOpen size={32} className="mb-4 text-bamboo group-hover:text-hanko transition-colors" />
-                    <h3 className="text-lg font-bold text-ink">{t}</h3>
-                </GlassCard>
+                    <BookOpen size={32} className="mb-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    <h3 className="text-lg font-bold">{item.t}</h3>
+                </WonderCard>
             ))}
           </div>
       )}

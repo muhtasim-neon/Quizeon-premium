@@ -1,15 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, BookOpen, Gamepad2, Settings, LogOut, Menu, X, ShieldAlert, 
-  GraduationCap, AlertTriangle, FileText, User as UserIcon, Map, Bot, 
-  BookMarked, Volume2, VolumeX, Sliders, DollarSign, Cpu, Crown, Zap
+  LayoutDashboard, Map, BookOpen, Mic, Bookmark, FolderOpen, 
+  Gamepad2, LogOut, Crown, Menu, X, Brain
 } from 'lucide-react';
-import { Button } from './UI';
 import { authService } from '../services/supabaseMock';
 import { User } from '../types';
-import { useSettings } from '../contexts/SettingsContext';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,49 +15,62 @@ interface LayoutProps {
   onLogout: () => void;
 }
 
-// Generate random sakura petals
-const SakuraBackground = () => {
-  const [petals, setPetals] = useState<Array<{id: number, left: string, size: string, delay: string, duration: string}>>([]);
+// Custom Torii Gate Icon to match the Logo in SS
+const ToriiGate = ({ size = 24, className = "" }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M2 6h20" />
+    <path d="M4 9h16" />
+    <path d="M7 6v14" />
+    <path d="M17 6v14" />
+  </svg>
+);
 
-  useEffect(() => {
-    // Generate fewer petals for better performance and subtler effect
-    const generated = Array.from({ length: 12 }).map((_, i) => ({
-      id: i,
-      left: `${Math.random() * 90 + 5}%`, // Avoid edges
-      size: `${Math.random() * 8 + 6}px`,
-      delay: `${Math.random() * 15}s`,
-      duration: `${Math.random() * 10 + 10}s` // Slower fall
-    }));
-    setPetals(generated);
-  }, []);
-
-  return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      {petals.map(p => (
-        <div 
-          key={p.id}
-          className="sakura animate-sakura-fall opacity-0"
-          style={{
-            left: p.left,
-            width: p.size,
-            height: p.size,
-            animationDelay: p.delay,
-            animationDuration: p.duration
-          }}
-        />
-      ))}
+const WonderBackground = () => (
+  <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-rice">
+    {/* Base Pattern */}
+    <div className="absolute inset-0 bg-pattern"></div>
+    {/* Washi Texture Overlay - Global Application */}
+    <div className="absolute inset-0 washi-texture opacity-40"></div>
+    
+    {/* Decorative Elements - Neo-Traditional */}
+    <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] border border-[#8d6e63]/10 rounded-full blur-xl" />
+    <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] border border-[#d4a373]/10 rounded-full blur-xl" />
+    
+    {/* Vertical Text Decoration */}
+    <div className="absolute top-20 right-6 writing-vertical text-6xl font-black text-[#8d6e63]/5 tracking-[0.5em] hidden lg:block select-none">
+      未来学習
     </div>
-  );
-};
+    <div className="absolute bottom-20 left-10 writing-vertical text-4xl font-bold text-[#d4a373]/5 tracking-[0.5em] hidden lg:block select-none">
+      日本語
+    </div>
+  </div>
+);
 
 export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showExtendedSettings, setShowExtendedSettings] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const location = useLocation();
   const navigate = useNavigate();
-  
-  const { 
-    audioSettings, updateAudioSettings
-  } = useSettings();
+
+  // Auto-collapse sidebar on mobile/tablet
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) setIsSidebarOpen(false);
+      else setIsSidebarOpen(true);
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = () => {
     authService.signOut();
@@ -67,187 +78,113 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     navigate('/login');
   };
 
-  const NavItem = ({ to, icon: Icon, label, badge, special }: { to: string; icon: any; label: string; badge?: string; special?: boolean }) => (
+  // Sidebar Item Component
+  const NavItem = ({ to, icon: Icon, label, special }: { to: string; icon: any; label: string; special?: boolean }) => (
     <NavLink 
       to={to} 
       className={({ isActive }) => 
-        `flex items-center justify-between px-4 py-3.5 mx-2 rounded-xl transition-all duration-300 font-medium text-sm group relative overflow-hidden ${
+        `flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-200 font-black text-sm uppercase tracking-widest group mb-1 ${
           isActive 
-            ? 'bg-hanko/5 text-hanko shadow-sm' 
+            ? 'bg-[#3e2723] text-rice shadow-xl shadow-[#3e2723]/20 scale-[1.02]' // Active: Dark Ink BG, White Text (Matches SS Home)
             : special 
-              ? 'bg-gradient-to-r from-yellow-50 to-orange-50 text-yellow-700 border border-yellow-200 hover:shadow-md'
-              : 'text-bamboo hover:bg-bamboo/5 hover:text-ink'
+              ? 'bg-[#fdfaf1] text-[#bc2f32] border-2 border-[#bc2f32] hover:bg-[#bc2f32] hover:text-white' 
+              : 'text-[#3e2723]/60 hover:text-[#3e2723] hover:bg-[#3e2723]/5' // Inactive: Dark Ink Text
         }`
       }
-      onClick={() => setIsMobileMenuOpen(false)}
     >
-      {({ isActive }) => (
-        <>
-          {isActive && !special && <div className="absolute left-0 top-0 bottom-0 w-1 bg-hanko rounded-r-full"></div>}
-          <div className="flex items-center gap-3 relative z-10">
-            <Icon size={18} className={isActive ? 'text-hanko' : special ? 'text-yellow-600' : 'text-bamboo/70 group-hover:text-ink transition-colors'} />
-            <span className={isActive ? 'font-bold' : ''}>{label}</span>
-          </div>
-          {badge && <span className="text-[10px] bg-hanko text-white px-2 py-0.5 rounded-full font-bold shadow-sm shadow-hanko/20">{badge}</span>}
-        </>
-      )}
+      <Icon size={20} className="shrink-0" />
+      <span className="whitespace-nowrap">{label}</span>
     </NavLink>
   );
 
   return (
-    <div className="min-h-screen flex text-ink overflow-hidden font-jp bg-rice selection:bg-hanko/20 selection:text-hanko">
-      
-      {/* Background Animation */}
-      <SakuraBackground />
+    <div className="min-h-screen flex text-ink font-sans relative bg-rice">
+      <WonderBackground />
 
-      {/* Mobile Toggle */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <Button 
-          variant="secondary" 
-          className="p-2.5 rounded-lg shadow-lg bg-white/80 backdrop-blur-md"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </Button>
-      </div>
-
-      {/* Sidebar - Designed like a scroll/sidebar */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-40 w-72 bg-white/80 backdrop-blur-xl border-r border-bamboo/10 transform transition-transform duration-500 lg:translate-x-0 flex flex-col shadow-2xl shadow-ink/5 lg:shadow-none
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="flex flex-col h-full p-4">
-          {/* Logo */}
-          <div className="flex items-center gap-3 mb-8 px-4 pt-4">
-            <div className="w-10 h-10 rounded-xl bg-ink flex items-center justify-center shadow-lg shadow-ink/20 text-rice">
-              {/* Torii Gate SVG Icon */}
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6c0 0 5-3 9-3s9 3 9 3" />
-                <path d="M5 10h14" />
-                <path d="M8 6v14" />
-                <path d="M16 6v14" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="font-sans font-extrabold text-2xl tracking-tighter text-ink uppercase">QUIZEON</h1>
-            </div>
+      {/* --- SIDEBAR --- */}
+      <aside 
+        className={`fixed left-0 top-0 bottom-0 bg-rice z-40 transition-all duration-300 flex flex-col
+          ${isSidebarOpen ? 'w-[280px] p-6' : 'w-0 overflow-hidden lg:w-[280px] lg:p-6'}
+        `}
+      >
+        {/* Brand / Logo Section (Matches SS) */}
+        <div className="flex items-center gap-4 mb-12 px-2 mt-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#3e2723] flex items-center justify-center text-white shadow-xl shadow-[#3e2723]/30">
+            <ToriiGate size={28} />
           </div>
+          <div className="font-black text-3xl tracking-tighter text-[#3e2723] uppercase font-jp">
+            QUIZEON
+          </div>
+        </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
-            {user.role === 'admin' ? (
-              <>
-                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-4 opacity-70">Core Modules</div>
-                <NavItem to="/admin" icon={LayoutDashboard} label="Dashboard" />
-                <NavItem to="/admin/users" icon={UserIcon} label="User Management" />
-                <NavItem to="/admin/content" icon={BookOpen} label="Content CMS" />
-                
-                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">Engine & Finance</div>
-                <NavItem to="/admin/settings" icon={Cpu} label="Game Engine" />
-                <NavItem to="/admin/settings" icon={DollarSign} label="Subscription" />
-                
-                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">System</div>
-                <NavItem to="/admin/settings" icon={ShieldAlert} label="Security & Config" />
-              </>
-            ) : (
-              <>
-                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-2 opacity-70">Home</div>
-                <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
-                <NavItem to="/roadmap" icon={Map} label="Roadmap" />
-                
-                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">Learn</div>
-                <NavItem to="/learning" icon={BookOpen} label="Learning Hub" />
-                <NavItem to="/sensei" icon={Bot} label="Sensei Dojo" />
-                <NavItem to="/reading" icon={BookMarked} label="Reading Room" />
-                
-                <div className="px-6 text-[10px] font-bold text-bamboo uppercase tracking-widest mb-2 mt-6 opacity-70">Tools</div>
-                <NavItem to="/mistakes" icon={AlertTriangle} label="Mistake Review" />
-                <NavItem to="/documents" icon={FileText} label="Archives" />
-                <NavItem to="/profile" icon={Settings} label="Settings" />
+        {/* Navigation Menu */}
+        <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar pr-2">
+          {/* Main Modules mapped to SS Labels */}
+          <NavItem to="/dashboard" icon={LayoutDashboard} label="Home" />
+          <NavItem to="/checklist" icon={Map} label="Roadmap" />
+          <NavItem to="/learning" icon={BookOpen} label="Library" />
+          <NavItem to="/sensei" icon={Mic} label="Speaking" />
+          <NavItem to="/mistakes" icon={Bookmark} label="Bookmarks" />
+          <NavItem to="/documents" icon={FolderOpen} label="Archives" />
+          
+          {/* Extra Features */}
+          <div className="my-6 h-px bg-[#795548]/10 mx-4"></div>
+          
+          <NavItem to="/games" icon={Gamepad2} label="Arcade" />
+          <NavItem to="/srs-status" icon={Brain} label="SRS Status" />
+          
+          <div className="mt-6">
+             <NavItem to="/subscription" icon={Crown} label="Go Premium" special />
+          </div>
+        </nav>
 
-                {/* Subscription Link */}
-                {user.subscription !== 'premium' && (
-                    <div className="mt-6 mb-2">
-                        <NavItem to="/subscription" icon={Crown} label="Go Premium" special />
-                    </div>
-                )}
-              </>
-            )}
-          </nav>
-
-          {/* Control Bar */}
-          <div className="mt-4 pt-4 border-t border-bamboo/10 px-2">
-             
-             {/* Profile Snippet */}
-             <div className="flex items-center gap-3 p-3 rounded-xl bg-rice/80 mb-4 border border-bamboo/10 hover:border-bamboo/30 transition-colors cursor-pointer" onClick={() => navigate('/profile')}>
-                <img src={user.avatar} alt="Avatar" className="w-10 h-10 rounded-full bg-rice border-2 border-white shadow-sm object-cover" />
+        {/* User Profile Snippet */}
+        <div className="mt-6 pt-6 border-t border-[#795548]/10">
+            <div 
+                className="flex items-center gap-3 p-3 rounded-2xl hover:bg-[#3e2723]/5 cursor-pointer transition-colors"
+                onClick={() => navigate('/profile')}
+            >
+                <img src={user.avatar} alt="User" className="w-10 h-10 rounded-xl object-cover bg-white shadow-sm border border-[#3e2723]/10" />
                 <div className="flex-1 min-w-0">
-                   <p className="text-sm font-bold text-ink truncate group-hover:text-hanko transition-colors flex items-center gap-1">
-                       {user.username}
-                       {user.subscription === 'premium' && <Crown size={12} className="text-yellow-600 fill-current" />}
-                   </p>
-                   <p className="text-[10px] text-bamboo capitalize">{user.role}</p>
+                    <p className="text-sm font-black text-[#3e2723] truncate">{user.username}</p>
+                    <p className="text-[10px] text-[#795548] font-bold uppercase tracking-wider">Level {Math.floor((user.xp || 0)/1000) + 1}</p>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); handleLogout(); }} className="p-2 text-bamboo hover:text-hanko hover:bg-red-50 rounded-lg transition-colors" title="Logout">
-                   <LogOut size={16} />
+                <button onClick={(e) => {e.stopPropagation(); handleLogout();}} className="text-[#795548] hover:text-[#bc2f32] p-2">
+                    <LogOut size={18} />
                 </button>
-             </div>
-
-             <div className="grid grid-cols-2 gap-2">
-                 <button 
-                    onClick={() => updateAudioSettings({ muted: !audioSettings.muted })}
-                    className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-bamboo/10 transition-colors group border border-transparent hover:border-bamboo/20 bg-white/50"
-                 >
-                    {audioSettings.muted 
-                        ? <VolumeX size={18} className="text-hanko group-hover:scale-110 transition-transform" /> 
-                        : <Volume2 size={18} className="text-green-600 group-hover:scale-110 transition-transform" />}
-                 </button>
-
-                 <button 
-                    onClick={() => setShowExtendedSettings(!showExtendedSettings)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors group border border-transparent bg-white/50 ${showExtendedSettings ? 'bg-hanko/5 text-hanko border-hanko/10' : 'hover:bg-bamboo/10 text-bamboo hover:border-bamboo/20'}`}
-                 >
-                    <Sliders size={18} className="group-hover:scale-110 transition-transform" />
-                 </button>
-             </div>
-
-             {/* Extended Mixer */}
-             {showExtendedSettings && (
-                 <div className="mt-3 p-4 bg-white/90 rounded-2xl border border-bamboo/10 space-y-4 animate-fade-in shadow-lg absolute bottom-24 left-4 right-4 backdrop-blur-md z-50">
-                     <div className="space-y-2">
-                         <div className="flex justify-between text-[10px] uppercase font-bold text-bamboo">
-                             <span>Volume</span>
-                             <span>{Math.round(audioSettings.volume * 100)}%</span>
-                         </div>
-                         <input 
-                            type="range" min="0" max="1" step="0.1" 
-                            value={audioSettings.volume}
-                            onChange={(e) => updateAudioSettings({ volume: parseFloat(e.target.value) })}
-                            className="w-full h-1.5 bg-bamboo/20 rounded-full appearance-none cursor-pointer accent-hanko"
-                         />
-                     </div>
-                     <div className="space-y-2">
-                         <div className="flex justify-between text-[10px] uppercase font-bold text-bamboo">
-                             <span>Speed</span>
-                             <span>{audioSettings.speed}x</span>
-                         </div>
-                         <input 
-                            type="range" min="0.5" max="2" step="0.25" 
-                            value={audioSettings.speed}
-                            onChange={(e) => updateAudioSettings({ speed: parseFloat(e.target.value) })}
-                            className="w-full h-1.5 bg-bamboo/20 rounded-full appearance-none cursor-pointer accent-hanko"
-                         />
-                     </div>
-                 </div>
-             )}
-          </div>
+            </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 lg:ml-72 relative z-10 overflow-y-auto h-screen scroll-smooth p-4 lg:p-10">
-        <div className="max-w-7xl mx-auto mt-16 lg:mt-0 animate-ink-bleed pb-12">
-          {children}
+      {/* --- MAIN CONTENT --- */}
+      <main className={`flex-1 transition-all duration-300 relative z-10 ${isSidebarOpen ? 'lg:ml-[280px]' : ''}`}>
+        
+        {/* Mobile Header */}
+        <div className="lg:hidden flex items-center justify-between p-4 sticky top-0 bg-rice/90 backdrop-blur-md z-30 border-b border-[#3e2723]/10">
+           <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-[#3e2723] flex items-center justify-center text-white">
+                <ToriiGate size={16} />
+              </div>
+              <div className="font-black text-xl text-[#3e2723] uppercase tracking-tight">QUIZEON</div>
+           </div>
+           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 bg-[#fdfaf1] rounded-lg text-[#3e2723]">
+              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+           </button>
+        </div>
+
+        {/* Standardized Content Container */}
+        <div className="px-6 py-8 md:px-10 md:py-12 max-w-[1600px] mx-auto min-h-[calc(100vh-80px)]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

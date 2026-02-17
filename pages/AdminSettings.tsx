@@ -23,7 +23,7 @@ export const AdminSettings: React.FC = () => {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
       <div>
         <h1 className="text-3xl font-bold text-ink mb-2">Settings & Config</h1>
         <p className="text-bamboo">Module 4, 7, 11: Game Engine, Finance & System</p>

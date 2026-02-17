@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { GlassCard, Button, Input } from '../components/UI';
+import { GlassCard, Button, Input, WonderCard } from '../components/UI';
 import { FileText, Upload, Search, File, Eye } from 'lucide-react';
 import { StudyDocument } from '../types';
 
@@ -31,7 +32,7 @@ export const Documents: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
        <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-3xl font-bold text-ink">Study Documents</h1>
@@ -64,7 +65,7 @@ export const Documents: React.FC = () => {
        {/* Grid */}
        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
            {docs.map(doc => (
-               <GlassCard key={doc.id} className="relative group overflow-hidden">
+               <WonderCard key={doc.id} colorClass="bg-white border-bamboo/10" className="group">
                    <div className="h-32 bg-rice rounded-lg mb-4 flex items-center justify-center border border-bamboo/10">
                        {doc.type === 'pdf' ? <FileText size={48} className="text-hanko" /> : <File size={48} className="text-blue-500" />}
                    </div>
@@ -75,10 +76,10 @@ export const Documents: React.FC = () => {
                    </div>
                    
                    {/* Hover Overlay */}
-                   <div className="absolute inset-0 bg-rice/90 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <div className="absolute inset-0 bg-white/90 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                        <Button variant="secondary" className="rounded-full p-3 h-auto"><Eye size={20} /></Button>
                    </div>
-               </GlassCard>
+               </WonderCard>
            ))}
        </div>
     </div>

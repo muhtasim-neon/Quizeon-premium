@@ -3,11 +3,11 @@ import { User, ContentAnalytics } from '../types';
 import { supabase } from './supabaseClient';
 
 // --- ADMIN AUTH BACKDOOR ONLY ---
-// Load password from LocalStorage if available, otherwise default to 'admin'
-let adminPassword = localStorage.getItem('quizeon_admin_pass') || 'admin';
+// Load password from LocalStorage if available, otherwise default to 'password-admin'
+let adminPassword = localStorage.getItem('quizeon_admin_pass') || 'password-admin';
 
 const ADMIN_CREDENTIALS = {
-  username: 'admin',
+  username: 'username-admin',
   // Getter ensures we always check against the current variable state
   get password() { return adminPassword; },
   userObj: {
@@ -50,8 +50,8 @@ export const authService = {
   signIn: async (loginInput: string, password: string): Promise<{ user: User | null; error: string | null }> => {
     const lowerInput = loginInput.toLowerCase().trim();
     
-    // 1. Admin Backdoor (Checks both username 'admin' and email 'admin@quizeon.com')
-    if ((lowerInput === ADMIN_CREDENTIALS.username || lowerInput === ADMIN_CREDENTIALS.userObj.email.toLowerCase()) && password === 'admin') {
+    // 1. Admin Backdoor (Checks both username 'username-admin' and email)
+    if ((lowerInput === ADMIN_CREDENTIALS.username || lowerInput === ADMIN_CREDENTIALS.userObj.email.toLowerCase()) && password === ADMIN_CREDENTIALS.password) {
          localStorage.setItem('quizeon_user', JSON.stringify(ADMIN_CREDENTIALS.userObj));
          return { user: ADMIN_CREDENTIALS.userObj, error: null };
     }
