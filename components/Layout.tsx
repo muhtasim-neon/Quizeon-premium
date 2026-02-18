@@ -3,16 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Map, BookOpen, Mic, Bookmark, FolderOpen, 
-  Gamepad2, LogOut, Crown, Menu, X, Brain
+  Gamepad2, Crown, Menu, X, Brain
 } from 'lucide-react';
-import { authService } from '../services/supabaseMock';
 import { User } from '../types';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface LayoutProps {
   children: React.ReactNode;
   user: User;
-  onLogout: () => void;
 }
 
 // Custom Torii Gate Icon to match the Logo in SS
@@ -56,7 +54,7 @@ const WonderBackground = () => (
   </div>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, user }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
@@ -71,12 +69,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  const handleLogout = () => {
-    authService.signOut();
-    onLogout();
-    navigate('/login');
-  };
 
   // Sidebar Item Component
   const NavItem = ({ to, icon: Icon, label, special }: { to: string; icon: any; label: string; special?: boolean }) => (
@@ -149,9 +141,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
                     <p className="text-sm font-black text-[#3e2723] truncate">{user.username}</p>
                     <p className="text-[10px] text-[#795548] font-bold uppercase tracking-wider">Level {Math.floor((user.xp || 0)/1000) + 1}</p>
                 </div>
-                <button onClick={(e) => {e.stopPropagation(); handleLogout();}} className="text-[#795548] hover:text-[#bc2f32] p-2">
-                    <LogOut size={18} />
-                </button>
             </div>
         </div>
       </aside>

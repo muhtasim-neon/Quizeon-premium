@@ -1,5 +1,8 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { GlassCard, Button, Badge, Input, WonderCard } from '../components/UI';
+// FIXED: Use relative path instead of alias '@/'
+import { Explainer } from '../components/Explainer';
 import { 
     BookOpen, ArrowLeft, ArrowRight, Hash, Scale, Copy, ArrowRightLeft, 
     Languages, Book, Layers, HelpCircle, RotateCw, 
@@ -286,7 +289,7 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
         }
 
         // Auto Advance
-        setTimeout(proceedToNext, 1500);
+        setTimeout(proceedToNext, 2000);
     };
 
     const proceedToNext = () => {
@@ -406,7 +409,7 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
     return (
         <div className="max-w-xl mx-auto py-6 animate-fade-in relative">
             {/* Header Stats */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-bamboo/10">
                     <span className="text-xs font-bold text-bamboo uppercase">Streak</span>
                     <div className="flex items-center text-hanko font-black">
@@ -414,6 +417,12 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
                         <span>{streak}</span>
                     </div>
                 </div>
+                
+                {/* Center: Progress Text */}
+                <div className="text-xs font-black text-bamboo uppercase tracking-widest bg-rice px-3 py-1 rounded-lg border border-bamboo/10">
+                    Question {currentQIndex + 1} / {questions.length}
+                </div>
+
                 <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-bamboo/10">
                     <Timer size={16} className={timeLeft <= 5 ? "text-red-500 animate-pulse" : "text-bamboo"} />
                     <span className={`font-mono font-bold ${timeLeft <= 5 ? "text-red-500" : "text-ink"}`}>{timeLeft}s</span>
@@ -422,9 +431,9 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
 
             {/* Progress Bar */}
             <div className="mb-8">
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="w-full h-3 bg-rice rounded-full overflow-hidden border border-bamboo/10 shadow-inner">
                     <div 
-                        className="h-full bg-hanko transition-all duration-500 ease-out" 
+                        className="h-full bg-gradient-to-r from-hanko to-red-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(188,47,50,0.4)]" 
                         style={{ width: `${progress}%` }}
                     />
                 </div>
@@ -460,8 +469,19 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
                 )}
             </GlassCard>
 
-            {/* Options Grid */}
-            <div className="grid grid-cols-1 gap-3 mb-8">
+            {/* Explainer / Feedback Section */}
+            {isAnswered && feedback === 'wrong' && (
+                <div className="mb-6">
+                    <Explainer 
+                        title="Correct Answer" 
+                        content={`The correct answer is "${currentQ.correct}". ${currentQ.original?.en ? `(${currentQ.original.en})` : ''}`} 
+                        variant="correction"
+                    />
+                </div>
+            )}
+
+            {/* Options Grid (2 Cols) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                 {currentQ.options.map((opt: string, i: number) => {
                     const isSelected = selectedOption === opt;
                     const isCorrect = opt === currentQ.correct;
@@ -471,8 +491,8 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
 
                     if (isAnswered) {
                         if (isCorrect) {
-                            // Correct Style: Emerald Glow (Always show correct answer)
-                            btnClass = "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-lg shadow-emerald-100 ring-2 ring-emerald-200 scale-[1.01]";
+                            // Correct Style: Emerald Glow
+                            btnClass = "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-lg shadow-emerald-100 ring-2 ring-emerald-200 scale-[1.01] animate-pop";
                             icon = <CheckCircle size={20} className="text-emerald-600 ml-auto shrink-0" />;
                         } else if (isSelected) {
                             // Wrong Selection Style: Crimson Glow
@@ -491,7 +511,7 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
                             disabled={isAnswered} 
                             className={`
                                 relative w-full text-left py-4 px-6 rounded-2xl border-2 text-lg font-bold transition-all duration-200 
-                                flex items-center
+                                flex items-center h-full
                                 ${btnClass}
                             `}
                         >

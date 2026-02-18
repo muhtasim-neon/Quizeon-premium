@@ -50,6 +50,23 @@ export const WonderCard: React.FC<WonderCardProps> = ({ children, colorClass = "
   </div>
 );
 
+// New Feature Card for Dark/Hero content
+export const FeatureCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, children, ...props }) => {
+  return (
+    <div 
+      className={cn(
+        "group relative overflow-hidden rounded-[32px] bg-ink text-rice shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-2 border-bamboo/20",
+        className
+      )}
+      {...props}
+    >
+      <div className="absolute inset-0 washi-texture opacity-20 pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-64 h-64 bg-hanko/20 rounded-full blur-[80px] -mr-16 -mt-16 transition-all group-hover:bg-hanko/30 pointer-events-none"></div>
+      <div className="relative z-10 h-full">{children}</div>
+    </div>
+  );
+};
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
   size?: 'sm' | 'md' | 'lg';

@@ -1,9 +1,8 @@
 
 import React, { useState } from 'react';
-import { GlassCard, Button, Input, WonderCard } from '../components/UI';
+import { Button, Input, WonderCard } from '../components/UI';
 import { User } from '../types';
-import { authService } from '../services/supabaseMock';
-import { User as UserIcon, Save, RefreshCw, Loader2, Shield, Calendar, Clock, RotateCcw } from 'lucide-react';
+import { Save, RefreshCw, Loader2, Shield, Calendar, Clock, RotateCcw } from 'lucide-react';
 
 interface ProfileProps {
   user: User;
@@ -80,19 +79,20 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
                 />
 
                 <div className="grid grid-cols-2 gap-4">
-                    {/* Role Toggler */}
+                    {/* Role Toggler - Explicit for Demo */}
                     <div 
-                        className="p-4 rounded-xl bg-white/40 border border-bamboo/10 relative group cursor-pointer hover:border-hanko/30 transition-colors hover:bg-white/60" 
+                        className="p-4 rounded-xl bg-white/40 border border-bamboo/10 relative group cursor-pointer hover:border-hanko/30 transition-colors hover:bg-white/60 hover:shadow-md" 
                         onClick={toggleRole} 
                         title="Click to switch role (Dev Mode)"
                     >
-                        <label className="block text-sm font-medium text-bamboo mb-1">Role</label>
-                        <div className="flex items-center gap-2 text-ink font-mono">
-                            <Shield size={16} className={user.role === 'admin' ? "text-hanko" : "text-bamboo"} />
-                            <span className="capitalize font-bold">{user.role}</span>
-                            <RotateCcw size={12} className="ml-auto opacity-0 group-hover:opacity-100 text-bamboo" />
+                        <label className="block text-sm font-bold text-bamboo mb-1 uppercase tracking-wide">Account Type (Demo)</label>
+                        <div className="flex items-center gap-2 text-ink font-mono mt-1">
+                            <Shield size={20} className={user.role === 'admin' ? "text-hanko" : "text-bamboo"} />
+                            <span className="capitalize font-black text-lg">{user.role}</span>
+                            <div className="ml-auto flex items-center gap-1 text-xs text-hanko font-bold bg-hanko/10 px-2 py-1 rounded">
+                                <RotateCcw size={12} /> Switch
+                            </div>
                         </div>
-                        <div className="absolute top-2 right-2 text-[10px] text-hanko opacity-0 group-hover:opacity-100 font-bold uppercase tracking-widest">Switch</div>
                     </div>
 
                     <div className="p-4 rounded-xl bg-white/40 border border-bamboo/10">

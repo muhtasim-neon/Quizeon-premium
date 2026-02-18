@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminUsers } from './pages/AdminUsers';
 import { AdminContent } from './pages/AdminContent';
@@ -20,47 +19,45 @@ import { Games } from './pages/Games';
 import { SRSStatus } from './pages/SRSStatus';
 import { User } from './types';
 import { SettingsProvider } from './contexts/SettingsContext';
-import { authService } from './services/supabaseMock';
 import { Loader2 } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for authenticated user on mount or create guest
+  // Initialize Default User (No Login System)
   useEffect(() => {
-    const checkAuth = async () => {
-      const stored = authService.getCurrentUser();
-      if (stored) {
-        setUser(stored);
-      } else {
-        // No Login System: Auto-create guest user
-        const guestUser: User = {
-            id: 'guest-' + Math.random().toString(36).substr(2, 9),
-            username: 'WonderStudent',
+    const initUser = () => {
+      let stored = localStorage.getItem('quizeon_user');
+      
+      if (!stored) {
+          const defaultUser: User = {
+            id: 'guest-' + Date.now(),
+            username: 'Student',
             role: 'student',
-            avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Wonder',
-            streak: 1,
-            xp: 100,
-            email: 'student@wonderkids.app',
             subscription: 'free',
+            xp: 1250,
+            streak: 1,
+            avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Student',
             joinedDate: new Date().toISOString(),
             lastActive: new Date().toISOString()
-        };
-        setUser(guestUser);
-        localStorage.setItem('quizeon_user', JSON.stringify(guestUser));
+          };
+          localStorage.setItem('quizeon_user', JSON.stringify(defaultUser));
+          setUser(defaultUser);
+      } else {
+          setUser(JSON.parse(stored));
       }
       setLoading(false);
     };
-    checkAuth();
+    initUser();
   }, []);
 
   // Listen for XP/Profile updates
   useEffect(() => {
     const handleUserUpdate = () => {
-        const stored = authService.getCurrentUser();
+        const stored = localStorage.getItem('quizeon_user');
         if (stored) {
-            setUser({ ...stored });
+            setUser(JSON.parse(stored));
         }
     };
     window.addEventListener('user-update', handleUserUpdate);
@@ -72,12 +69,6 @@ function App() {
       localStorage.setItem('quizeon_user', JSON.stringify(updated));
   };
 
-  const handleLogout = () => {
-      authService.signOut();
-      // Instead of forcing login, just reload which will create a new guest
-      window.location.reload();
-  };
-
   if (loading) {
       return (
           <div className="flex h-screen items-center justify-center bg-rice">
@@ -86,13 +77,12 @@ function App() {
       );
   }
 
-  // Fallback if something goes wrong with guest creation
   if (!user) return null;
 
   return (
     <SettingsProvider>
         <Router>
-            <Layout user={user} onLogout={handleLogout}>
+            <Layout user={user}>
                 <Routes>
                     {/* Admin Routes */}
                     {user.role === 'admin' && (
@@ -117,9 +107,6 @@ function App() {
                     <Route path="/profile" element={<Profile user={user} onUpdate={handleUpdateUser} />} />
                     <Route path="/subscription" element={<Subscription />} />
                     
-                    {/* Explicit Login Route for admin backdoor if needed, though Profile toggle exists */}
-                    <Route path="/login" element={<Login onLogin={setUser} />} />
-
                     {/* Default Redirect */}
                     <Route path="*" element={<Navigate to={user.role === 'admin' ? "/admin" : "/dashboard"} replace />} />
                 </Routes>

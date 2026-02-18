@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Imported Zen Kaku Gothic New for the Futuristic/Modern Japanese look -->
     <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
@@ -22,44 +21,28 @@
               mono: ['"Zen Kaku Gothic New"', 'monospace'], 
             },
             colors: {
-              // --- CORE PALETTE ---
-              rice: '#fdfaf1',      // --washi-bg
-              ink: '#3e2723',       // --secondary (Sumi Ink)
-              bamboo: '#795548',    // --washi-dim
-              hanko: '#bc2f32',     // --hanko (Vermilion)
-              straw: '#d4a373',     // --accent
-              wood: '#8d6e63',      // --primary
-              
-              // Helper for Cards (Paper) - keeping slightly brighter than Rice for contrast, 
-              // or strict Rice if preferred. Using pure white for card surfaces creates depth against Rice bg.
+              rice: '#fdfaf1',
+              ink: '#3e2723',
+              bamboo: '#795548',
+              hanko: '#bc2f32',
+              straw: '#d4a373',
+              wood: '#8d6e63',
               white: '#ffffff', 
-              black: '#3e2723', // Map black to Ink
-
-              // --- STRICT MAPPING OF ALL TAILWIND COLORS TO PALETTE ---
-              
-              // Gray/Slate/Zinc -> Bamboo & Rice
+              black: '#3e2723',
               gray: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#e6e0d4', 300: '#d4a373', 400: '#795548', 500: '#795548', 600: '#795548', 700: '#3e2723', 800: '#3e2723', 900: '#3e2723' },
               slate: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#795548', 800: '#3e2723', 900: '#3e2723' },
               zinc: { 50: '#fdfaf1', 500: '#795548', 900: '#3e2723' },
               neutral: { 50: '#fdfaf1', 500: '#795548', 900: '#3e2723' },
               stone: { 50: '#fdfaf1', 500: '#795548', 900: '#3e2723' },
-
-              // Red/Rose/Pink -> Hanko (Vermilion)
               red: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#bc2f32', 600: '#bc2f32', 700: '#3e2723', 800: '#3e2723', 900: '#3e2723' },
               rose: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#bc2f32', 600: '#bc2f32' },
               pink: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#bc2f32', 600: '#bc2f32' },
-
-              // Orange/Yellow/Amber -> Straw (Gold/Accent)
-              orange: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#bc2f32', 600: '#bc2f32' }, // Darker orange goes to Hanko
+              orange: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#bc2f32', 600: '#bc2f32' },
               yellow: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 400: '#d4a373', 500: '#d4a373', 600: '#d4a373', 900: '#3e2723' },
               amber: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#d4a373', 600: '#d4a373' },
-
-              // Green/Emerald/Teal -> Wood (Natural) or Straw (Highlight)
               green: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#8d6e63', 700: '#3e2723' },
               emerald: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#8d6e63', 600: '#8d6e63' },
               teal: { 50: '#fdfaf1', 100: '#fdfaf1', 500: '#8d6e63', 600: '#8d6e63' },
-
-              // Blue/Indigo/Violet/Purple -> Wood (Primary) or Ink (Dark)
               blue: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#795548', 700: '#3e2723', 800: '#3e2723' },
               indigo: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#3e2723' },
               violet: { 50: '#fdfaf1', 100: '#fdfaf1', 200: '#d4a373', 500: '#8d6e63', 600: '#3e2723' },
@@ -73,6 +56,7 @@
               'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
               'bounce-slight': 'bounceSlight 2s infinite',
               'ink-bleed': 'inkBleed 1.5s ease-out forwards',
+              'shake': 'shake 0.4s ease-in-out',
             },
             keyframes: {
               fadeIn: {
@@ -94,6 +78,11 @@
               inkBleed: {
                 '0%': { transform: 'scale(0.8)', opacity: '0' },
                 '100%': { transform: 'scale(1)', opacity: '1' }
+              },
+              shake: {
+                '0%, 100%': { transform: 'translateX(0)' },
+                '25%': { transform: 'translateX(-5px)' },
+                '75%': { transform: 'translateX(5px)' }
               }
             }
           }
@@ -120,7 +109,7 @@
         overflow-x: hidden;
       }
 
-      /* Cyber-Washi Grid Pattern - Using Wood/Accent colors */
+      /* Cyber-Washi Grid Pattern */
       .bg-pattern {
         background-size: 40px 40px;
         background-image: linear-gradient(to right, rgba(212, 163, 115, 0.1) 1px, transparent 1px),
@@ -131,21 +120,20 @@
       /* Washi Paper Texture Overlay */
       .washi-texture {
         background-color: transparent;
-        background-image: url("https://www.transparenttextures.com/patterns/washi.png");
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.4'/%3E%3C/svg%3E");
         background-repeat: repeat;
-        background-size: auto;
-        opacity: 0.6;
+        opacity: 0.3;
         mix-blend-mode: multiply;
         pointer-events: none;
       }
 
-      /* Grain effect for extra texture if needed */
+      /* Grain effect */
       .washi-grain {
-        background-image: url("https://www.transparenttextures.com/patterns/cream-paper.png");
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.2'/%3E%3C/svg%3E");
         background-repeat: repeat;
       }
 
-      /* Tech/Modern Scrollbar - using Wood/Straw */
+      /* Tech/Modern Scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
       }
@@ -181,17 +169,17 @@
   <script type="importmap">
 {
   "imports": {
+    "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.1",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.574.0",
+    "framer-motion": "https://esm.sh/framer-motion@^12.34.1",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.96.0",
+    "clsx": "https://esm.sh/clsx@^2.1.1",
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "recharts": "https://esm.sh/recharts@^3.7.0",
-    "clsx": "https://esm.sh/clsx@^2.1.1",
-    "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.3",
-    "framer-motion": "https://esm.sh/framer-motion@^11.0.8" 
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0"
   }
 }
 </script>
@@ -201,3 +189,4 @@
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
+    

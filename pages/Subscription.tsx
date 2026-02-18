@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
 import { GlassCard, Button, Badge, Input, WonderCard } from '../components/UI';
-import { CheckCircle2, Crown, Zap, Shield, CreditCard, Smartphone, Loader2, X } from 'lucide-react';
-import { authService } from '../services/supabaseMock';
+import { CheckCircle2, Crown, Shield, CreditCard, Smartphone, Loader2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PricingCard: React.FC<{ 
@@ -62,7 +61,16 @@ const PaymentModal: React.FC<{ plan: string; price: string; onClose: () => void;
         e.preventDefault();
         setLoading(true);
         await new Promise(r => setTimeout(r, 2000));
-        await authService.upgradeSubscription();
+        
+        // Local upgrade logic
+        const stored = localStorage.getItem('quizeon_user');
+        if (stored) {
+            const user = JSON.parse(stored);
+            const updatedUser = { ...user, subscription: 'premium' };
+            localStorage.setItem('quizeon_user', JSON.stringify(updatedUser));
+            window.dispatchEvent(new Event('user-update'));
+        }
+
         setLoading(false);
         onSuccess();
     };
