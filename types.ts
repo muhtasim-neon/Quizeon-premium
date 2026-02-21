@@ -99,6 +99,37 @@ export interface ActivityLog {
 
 // --- New Types for AI & Advanced Features ---
 
+export interface ActivityHeatmapData {
+  date: string;
+  count: number;
+}
+
+export interface SkillTreeNode {
+  id: string;
+  title: string;
+  jpTitle: string;
+  status: 'locked' | 'unlocked' | 'completed';
+  icon: string;
+  children?: string[]; // IDs of child nodes
+  requiredXP?: number;
+}
+
+export interface MasteryBadge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  category: 'vocab' | 'kanji' | 'grammar' | 'culture';
+}
+
+export interface SRSHealthData {
+  category: string;
+  health: number; // 0-100
+  dueCount: number;
+  nextReviewDate: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -150,3 +181,30 @@ export interface ConversationTopic {
   jpTitle: string; // Japanese Title
   lines: ConversationLine[];
 }
+
+// --- RPG & Gamification Types ---
+
+export interface JourneyState {
+  currentCity: string;
+  progress: number; // 0-100 within the city
+  unlockedCities: string[];
+}
+
+export interface PetState {
+  type: 'tanuki' | 'neko';
+  hunger: number; // 0-100
+  happiness: number; // 0-100
+  lastFed: number; // Timestamp
+}
+
+export interface GamanState {
+  points: number;
+  level: number;
+}
+
+export interface SakuraState {
+  stage: 'seedling' | 'sprout' | 'young' | 'adult' | 'blooming';
+  blooms: number; // 0-100
+}
+
+export type SamuraiRank = 'Ronin' | 'Ashigaru' | 'Samurai' | 'Shogun';

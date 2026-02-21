@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { GlassCard, Button, Badge, Input, WonderCard } from '../components/UI';
-// FIXED: Use relative path instead of alias '@/'
 import { Explainer } from '../components/Explainer';
 import { 
     BookOpen, ArrowLeft, ArrowRight, Hash, Scale, Copy, ArrowRightLeft, 
@@ -10,7 +9,7 @@ import {
     PenTool, Timer, Heart, Zap, Wand2, RefreshCw, Square, MessageCircle,
     Frown, Play, SortAsc, X, ListOrdered, Crosshair, Eye, Music,
     Ear, Briefcase, Coffee, Pause, Loader2, Ghost, ThumbsDown, Flame, Sparkles,
-    ChevronRight, Check, AlertTriangle, Circle
+    ChevronRight, Check, AlertTriangle, Circle, Swords
 } from 'lucide-react';
 import { 
     VOCAB_DATA, KANA_DATA, KANJI_DATA, GRAMMAR_DATA, 
@@ -22,6 +21,7 @@ import { LearningItem, StoryContent, ConversationTopic, SongContent } from '../t
 import { progressService } from '../services/progressService';
 import { aiService } from '../services/aiService';
 import { useSettings } from '../contexts/SettingsContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- TYPES & UTILS ---
 
@@ -139,6 +139,7 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
     const [isAnswered, setIsAnswered] = useState(false);
     const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
     const [timeLeft, setTimeLeft] = useState(15);
+    const [slashed, setSlashed] = useState(false);
     
     const timerRef = useRef<number | null>(null);
 
@@ -217,6 +218,7 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
         setIsAnswered(false);
         setSelectedOption(null);
         setFeedback(null);
+        setSlashed(false);
         setTimeLeft(15);
 
     }, [items, customMode]);
@@ -268,7 +270,9 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
 
         if (isCorrect) {
             setFeedback('correct');
+            setSlashed(true);
             playSound('correct');
+            playSound('hit');
             setScore(prev => prev + 1);
             const newStreak = streak + 1;
             setStreak(newStreak);
@@ -289,7 +293,7 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
         }
 
         // Auto Advance
-        setTimeout(proceedToNext, 2500); // Slower advance for reading explanation
+        setTimeout(proceedToNext, 1200); 
     };
 
     const proceedToNext = () => {
@@ -298,6 +302,7 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
             setIsAnswered(false);
             setSelectedOption(null);
             setFeedback(null);
+            setSlashed(false);
             setTimeLeft(15);
         } else {
             finishQuiz();
@@ -362,6 +367,7 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
                             setIsAnswered(false);
                             setSelectedOption(null);
                             setFeedback(null);
+                            setSlashed(false);
                             setTimeLeft(15);
                         }}>
                             <RefreshCw size={18} className="mr-2" /> Retry
@@ -407,126 +413,178 @@ const QuizView: React.FC<QuizProps> = ({ items, customMode = 'normal', onComplet
     const progress = ((currentQIndex + 1) / questions.length) * 100;
 
     return (
-        <div className="max-w-xl mx-auto py-6 animate-fade-in relative">
-            {/* Header Stats */}
-            <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-bamboo/10">
-                    <span className="text-xs font-bold text-bamboo uppercase">Streak</span>
-                    <div className="flex items-center text-hanko font-black">
-                        <Zap size={16} fill="currentColor" className={streak > 2 ? "animate-bounce" : ""} />
-                        <span>{streak}</span>
+        <div className="max-w-3xl mx-auto py-6 animate-fade-in relative bg-rice rounded-[32px] border-2 border-b-4 border-bamboo/10 min-h-[600px] flex flex-col overflow-hidden shadow-2xl">
+            {/* Slash Visual Overlay - Motion Enhanced */}
+            <AnimatePresence>
+                {slashed && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
+                    >
+                        <motion.div 
+                            initial={{ scaleX: 0, rotate: 45 }} 
+                            animate={{ scaleX: 1, rotate: 45 }} 
+                            transition={{ duration: 0.1 }}
+                            className="w-[140%] h-2 bg-white absolute shadow-[0_0_20px_rgba(255,255,255,0.8)]" 
+                        />
+                        <motion.div 
+                            initial={{ scaleX: 0, rotate: 45 }} 
+                            animate={{ scaleX: 1, rotate: 45 }} 
+                            transition={{ duration: 0.1, delay: 0.05 }}
+                            className="w-[140%] h-1 bg-hanko absolute" 
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Background Texture */}
+            <div className="absolute inset-0 bg-pattern opacity-30 pointer-events-none"></div>
+
+            {/* Progress Bar (Combined with Header Stats) */}
+            <div className="relative z-30 bg-white/80 backdrop-blur-sm border-b border-bamboo/10 px-4 py-4 md:px-8 flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1 bg-rice px-3 py-1 rounded-xl border border-bamboo/10">
+                        <Swords size={16} className="text-hanko" />
+                        <span className="text-xs font-black text-ink uppercase tracking-widest">
+                            Q {currentQIndex + 1}/{questions.length}
+                        </span>
+                    </div>
+                    {/* Visual Progress Bar Segment */}
+                    <div className="hidden sm:block w-32 h-2 bg-bamboo/10 rounded-full overflow-hidden">
+                        <motion.div 
+                            className="h-full bg-hanko" 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                        />
                     </div>
                 </div>
-                
-                {/* Center: Progress Text */}
-                <div className="text-xs font-black text-bamboo uppercase tracking-widest bg-rice px-3 py-1 rounded-lg border border-bamboo/10">
-                    Question {currentQIndex + 1} / {questions.length}
-                </div>
 
-                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-bamboo/10">
-                    <Timer size={16} className={timeLeft <= 5 ? "text-red-500 animate-pulse" : "text-bamboo"} />
-                    <span className={`font-mono font-bold ${timeLeft <= 5 ? "text-red-500" : "text-ink"}`}>{timeLeft}s</span>
-                </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="mb-8">
-                <div className="w-full h-3 bg-rice rounded-full overflow-hidden border border-bamboo/10 shadow-inner">
-                    <div 
-                        className="h-full bg-gradient-to-r from-hanko to-red-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(188,47,50,0.4)]" 
-                        style={{ width: `${progress}%` }}
-                    />
-                </div>
-            </div>
-
-            {/* Question Card */}
-            <GlassCard className="text-center py-12 mb-8 border-0 shadow-xl bg-white relative overflow-hidden flex flex-col items-center justify-center min-h-[220px]">
-                {/* Background Decoration */}
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500"></div>
-                <div className="absolute -bottom-10 -right-10 text-bamboo/5 rotate-12 pointer-events-none">
-                    <HelpCircle size={150} />
-                </div>
-
-                {currentQ.type === 'audio' ? (
-                    <div className="animate-pop">
-                        <button 
-                            onClick={() => speak(currentQ.question)} 
-                            className="w-24 h-24 bg-hanko rounded-full flex items-center justify-center text-white shadow-lg shadow-hanko/30 hover:scale-110 transition-transform mb-4 animate-pulse"
-                        >
-                            <Volume2 size={40} />
-                        </button>
-                        <p className="text-bamboo font-bold uppercase tracking-widest text-xs">Listen & Select Meaning</p>
-                    </div>
-                ) : (
-                    <div className="animate-pop relative z-10">
-                        <h2 className="text-4xl md:text-5xl font-jp font-bold text-ink mb-4 leading-relaxed drop-shadow-sm">
-                            {currentQ.question}
-                        </h2>
-                        <div className="text-[10px] text-bamboo uppercase tracking-[0.2em] font-bold bg-rice px-3 py-1 rounded-full border border-bamboo/10 inline-block">
-                            Select Answer
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-bamboo uppercase tracking-widest hidden sm:inline">Streak</span>
+                        <div className="flex items-center text-orange-500 font-black text-xl">
+                            <Zap size={20} fill="currentColor" className={streak > 2 ? "animate-bounce" : ""} />
+                            <span>{streak}</span>
                         </div>
                     </div>
-                )}
-            </GlassCard>
 
-            {/* Explainer / Feedback Section */}
-            {isAnswered && feedback === 'wrong' && (
-                <div className="mb-6">
-                    <Explainer 
-                        title="Correct Answer" 
-                        content={`The correct answer is "${currentQ.correct}". ${currentQ.original?.en ? `(${currentQ.original.en})` : ''}`} 
-                        variant="correction"
-                    />
+                    <div className="w-px h-6 bg-bamboo/20"></div>
+
+                    <div className="flex items-center gap-2">
+                        <Timer size={20} className={timeLeft <= 5 ? "text-red-500 animate-pulse" : "text-bamboo"} />
+                        <span className={`font-mono font-bold text-xl ${timeLeft <= 5 ? "text-red-500" : "text-ink"}`}>{timeLeft}s</span>
+                    </div>
                 </div>
-            )}
+            </div>
 
-            {/* Options Grid (2 Cols) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                {currentQ.options.map((opt: string, i: number) => {
-                    const isSelected = selectedOption === opt;
-                    const isCorrect = opt === currentQ.correct;
-                    
-                    let btnClass = "bg-white hover:bg-white/80 border-transparent shadow-sm text-ink hover:-translate-y-0.5 hover:shadow-md";
-                    let icon = null;
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 space-y-8 overflow-hidden">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={currentQ.id}
+                        className="w-full flex flex-col items-center flex-1 h-full"
+                        initial={{ opacity: 0, x: 100 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -100 }}
+                        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                    >
+                        {/* Question Area */}
+                        <div className={`flex-1 flex flex-col justify-center items-center w-full text-center mb-4 transition-transform duration-200 ${slashed ? 'scale-110 text-hanko blur-[1px]' : ''}`}>
+                            {currentQ.type === 'audio' ? (
+                                <div className="animate-pop flex flex-col items-center">
+                                    <button 
+                                        onClick={() => speak(currentQ.question)} 
+                                        className="w-32 h-32 bg-hanko rounded-full flex items-center justify-center text-white shadow-xl shadow-hanko/30 hover:scale-110 transition-transform mb-6 animate-pulse border-4 border-white/20"
+                                    >
+                                        <Volume2 size={56} />
+                                    </button>
+                                    <p className="text-bamboo font-bold uppercase tracking-[0.3em] text-sm bg-white/50 px-4 py-2 rounded-full">Listen Carefully</p>
+                                </div>
+                            ) : (
+                                <div className="relative z-10">
+                                    <h2 className="text-6xl md:text-8xl font-black text-ink font-jp mb-6 leading-tight drop-shadow-md select-none">
+                                        {currentQ.question}
+                                    </h2>
+                                    {isAnswered && feedback === 'wrong' && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="bg-red-100 text-red-800 px-6 py-3 rounded-xl inline-block border-2 border-red-200 font-bold shadow-lg"
+                                        >
+                                            Correct: {currentQ.correct}
+                                        </motion.div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
-                    if (isAnswered) {
-                        if (isCorrect) {
-                            // Correct Style: Emerald Glow
-                            btnClass = "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-lg shadow-emerald-100 ring-2 ring-emerald-200 scale-[1.01] animate-pop";
-                            icon = <CheckCircle size={20} className="text-emerald-600 ml-auto shrink-0" />;
-                        } else if (isSelected) {
-                            // Wrong Selection Style: Crimson Glow
-                            btnClass = "bg-red-50 border-red-500 text-red-800 shadow-lg shadow-red-100 ring-2 ring-red-200 animate-shake";
-                            icon = <XCircle size={20} className="text-red-600 ml-auto shrink-0" />;
-                        } else {
-                            // Dim others
-                            btnClass = "bg-gray-50 text-gray-400 border-transparent opacity-50 scale-95";
-                        }
-                    }
+                        {/* Options Grid */}
+                        <div className="grid grid-cols-2 gap-4 w-full mt-auto px-2 md:px-8">
+                            {currentQ.options.map((opt: string, i: number) => {
+                                const isSelected = selectedOption === opt;
+                                const isCorrect = opt === currentQ.correct;
+                                
+                                let btnClass = "bg-white border-2 border-b-4 border-bamboo/10 text-ink shadow-sm";
+                                let icon = null;
 
-                    return (
-                        <button 
-                            key={i} 
-                            onClick={() => handleAnswer(opt)} 
-                            disabled={isAnswered} 
-                            className={`
-                                relative w-full text-left py-4 px-6 rounded-2xl border-2 text-lg font-bold transition-all duration-200 
-                                flex items-center h-full
-                                ${btnClass}
-                            `}
-                        >
-                            <span className="flex-1">{opt}</span>
-                            {icon}
-                        </button>
-                    )
-                })}
+                                if (isAnswered) {
+                                    if (isCorrect) {
+                                        // Correct Style
+                                        btnClass = "bg-green-500 border-green-700 text-white border-b-2 translate-y-[2px] shadow-none";
+                                        icon = <CheckCircle size={24} className="text-white ml-auto shrink-0 animate-bounce" />;
+                                    } else if (isSelected) {
+                                        // Wrong Style
+                                        btnClass = "bg-red-500 border-red-700 text-white border-b-2 translate-y-[2px] shadow-none";
+                                        icon = <XCircle size={24} className="text-white ml-auto shrink-0" />;
+                                    } else {
+                                        // Dim others
+                                        btnClass = "bg-gray-100 text-gray-400 border-gray-200 border-b-2 translate-y-[2px] shadow-none opacity-50 scale-95";
+                                    }
+                                }
+
+                                return (
+                                    <motion.button 
+                                        key={`${currentQ.id}-${i}`} 
+                                        onClick={() => handleAnswer(opt)} 
+                                        disabled={isAnswered} 
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ 
+                                            opacity: 1, 
+                                            y: 0,
+                                            scale: isAnswered && isCorrect ? 1.02 : 1,
+                                            x: isAnswered && isSelected && !isCorrect ? [0, -5, 5, -5, 5, 0] : 0
+                                        }}
+                                        transition={{ 
+                                            delay: i * 0.1, 
+                                            type: "spring",
+                                            stiffness: 400,
+                                            damping: 20
+                                        }}
+                                        whileHover={{ scale: isAnswered ? 1 : 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        className={`
+                                            relative w-full text-left py-6 px-4 md:px-8 rounded-2xl text-lg md:text-2xl font-black 
+                                            flex items-center h-full min-h-[100px] justify-center text-center
+                                            ${btnClass}
+                                        `}
+                                    >
+                                        <span className="flex-1 font-jp leading-tight">{opt}</span>
+                                        {icon}
+                                    </motion.button>
+                                )
+                            })}
+                        </div>
+                    </motion.div>
+                </AnimatePresence>
             </div>
         </div>
     );
 };
 
 const KanaQuizView: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({ items, onExit }) => {
-// ... existing KanaQuizView content
     return (
         <div className="w-full">
             <Button variant="ghost" onClick={onExit} className="mb-4">← Exit Quiz</Button>
@@ -535,7 +593,6 @@ const KanaQuizView: React.FC<{ items: LearningItem[]; onExit: () => void }> = ({
     );
 };
 
-// ... keep remaining components exactly as they were ...
 const LessonStoryView: React.FC<{ items: LearningItem[] }> = ({ items }) => {
     const { speak, isSpeaking, isPaused, pauseAudio, resumeAudio, stopAudio } = useSettings();
     const [story, setStory] = useState<StoryContent | null>(null);
@@ -1612,6 +1669,7 @@ export const LearningHub: React.FC = () => {
                             {currentContent.map((item) => {
                                 const extendedItem = item as ExtendedLearningItem;
                                 const isMixed = !!extendedItem.kanaPair;
+                                // Check if item is a combination sound (Youon) like 'kya', 'shu' which has length > 1
                                 const isYouon = item.ja.length > 1; 
                                 
                                 return (
@@ -1735,4 +1793,3 @@ export const LearningHub: React.FC = () => {
       </div>
     );
 };
-    

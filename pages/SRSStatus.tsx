@@ -1,13 +1,19 @@
 
 import React, { useEffect, useState } from 'react';
-import { GlassCard, Badge } from '../components/UI';
+import { GlassCard, Badge, WonderCard } from '../components/UI';
 import { progressService } from '../services/progressService';
 import { SRSItemState, LearningItem } from '../types';
 import { ALL_CONTENT } from '../data/mockContent';
-import { Brain, Zap, Clock, Calendar } from 'lucide-react';
+import { Brain, Zap, Clock, Calendar, TrendingUp, PieChart as PieIcon } from 'lucide-react';
+import { 
+    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
+    PieChart, Pie, Cell, Legend 
+} from 'recharts';
 
 export const SRSStatus: React.FC = () => {
     const [srsItems, setSrsItems] = useState<(SRSItemState & { content?: LearningItem })[]>([]);
+    const [reviewStats, setReviewStats] = useState<any[]>([]);
+    const [masteryStats, setMasteryStats] = useState<any[]>([]);
 
     useEffect(() => {
         const stats = progressService.getSRSStats();
@@ -16,7 +22,60 @@ export const SRSStatus: React.FC = () => {
             return { ...stat, content };
         }).sort((a, b) => a.nextReview - b.nextReview); // Sort by due date: Due first
         setSrsItems(combined);
+
+        // Calculate Chart Data
+        processChartData(combined);
     }, []);
+
+    const processChartData = (items: (SRSItemState & { content?: LearningItem })[]) => {
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000;
+
+        // 1. Review Forecast (Bar Chart)
+        let overdue = 0;
+        let today = 0; // Remainder of today
+        let tomorrow = 0;
+        let day3 = 0;
+        let later = 0;
+
+        items.forEach(item => {
+            if (item.nextReview < now) {
+                overdue++;
+            } else if (item.nextReview < now + oneDay) {
+                today++;
+            } else if (item.nextReview < now + 2 * oneDay) {
+                tomorrow++;
+            } else if (item.nextReview < now + 3 * oneDay) {
+                day3++;
+            } else {
+                later++;
+            }
+        });
+
+        setReviewStats([
+            { name: 'Overdue', count: overdue, fill: '#bc2f32' }, // Hanko Red
+            { name: 'Today', count: today, fill: '#f59e0b' }, // Amber
+            { name: 'Tmrw', count: tomorrow, fill: '#10b981' }, // Emerald
+            { name: '+2 Days', count: day3, fill: '#3b82f6' }, // Blue
+        ]);
+
+        // 2. Mastery Distribution (Pie Chart)
+        let learning = 0; // Interval < 3 days
+        let young = 0;    // Interval 3 - 21 days
+        let mature = 0;   // Interval > 21 days
+
+        items.forEach(item => {
+            if (item.interval < 3) learning++;
+            else if (item.interval <= 21) young++;
+            else mature++;
+        });
+
+        setMasteryStats([
+            { name: 'Apprentice', value: learning },
+            { name: 'Guru', value: young },
+            { name: 'Master', value: mature },
+        ]);
+    };
 
     const formatDate = (timestamp: number) => {
         return new Date(timestamp).toLocaleString(undefined, { 
@@ -28,8 +87,10 @@ export const SRSStatus: React.FC = () => {
         return timestamp <= Date.now() ? 'Due Now' : 'Review Later';
     };
 
+    const MASTERY_COLORS = ['#fbbf24', '#34d399', '#818cf8']; // Amber, Emerald, Indigo
+
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
+        <div className="max-w-6xl mx-auto space-y-8 animate-fade-in pb-10">
             <div className="flex flex-col md:flex-row justify-between items-end gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-ink mb-2 flex items-center gap-3">
@@ -41,6 +102,66 @@ export const SRSStatus: React.FC = () => {
                     <span className="text-xs font-bold text-bamboo uppercase">Total Items</span>
                     <span className="text-xl font-black text-hanko">{srsItems.length}</span>
                 </div>
+            </div>
+
+            {/* Analytics Charts Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <WonderCard colorClass="bg-white border-bamboo/10" className="flex flex-col h-[300px]">
+                    <h3 className="font-bold text-lg text-ink mb-4 flex items-center gap-2">
+                        <TrendingUp size={18} className="text-blue-500" /> Review Forecast
+                    </h3>
+                    <div className="flex-1 w-full min-h-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={reviewStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#795548', fontWeight: 'bold' }} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#795548' }} />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    cursor={{ fill: '#fdfaf1' }}
+                                />
+                                <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={40} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </WonderCard>
+
+                <WonderCard colorClass="bg-white border-bamboo/10" className="flex flex-col h-[300px]">
+                    <h3 className="font-bold text-lg text-ink mb-4 flex items-center gap-2">
+                        <PieIcon size={18} className="text-purple-500" /> Mastery Levels
+                    </h3>
+                    <div className="flex-1 w-full min-h-0 flex items-center justify-center">
+                        {srsItems.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={masteryStats}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {masteryStats.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={MASTERY_COLORS[index % MASTERY_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                                    <Legend 
+                                        verticalAlign="bottom" 
+                                        height={36} 
+                                        iconType="circle"
+                                        formatter={(value, entry: any) => <span className="text-xs font-bold text-ink ml-1">{value} ({entry.payload.value})</span>}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="text-center text-bamboo text-sm">
+                                No data available yet.<br/>Start learning to see stats!
+                            </div>
+                        )}
+                    </div>
+                </WonderCard>
             </div>
 
             <GlassCard className="!p-0 overflow-hidden">

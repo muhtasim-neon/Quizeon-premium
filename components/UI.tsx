@@ -13,19 +13,21 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   hoverEffect?: boolean;
 }
 
-// Standard Card
+// Standard Card - Updated to match the tactile design language (WonderCard style)
 export const GlassCard: React.FC<GlassCardProps> = ({ className, children, hoverEffect = false, ...props }) => {
   return (
     <div 
       className={cn(
-        "bg-white rounded-[32px] p-6 transition-all duration-300 ease-out text-ink relative overflow-hidden border-2 border-transparent",
-        "shadow-[0_10px_40px_-10px_rgba(62,39,35,0.05)]", 
-        hoverEffect && "hover:-translate-y-2 hover:shadow-[0_20px_40px_-12px_rgba(141,110,99,0.2)] hover:border-wood/30 cursor-pointer active:scale-[0.98]",
+        "bg-white rounded-[32px] p-6 transition-all duration-300 ease-out text-ink relative overflow-hidden",
+        "border-2 border-b-4 border-bamboo/10", 
+        "shadow-sm",
+        hoverEffect && "hover:-translate-y-1 hover:shadow-md hover:border-bamboo/20 cursor-pointer active:scale-[0.98] active:border-b-2 active:translate-y-1",
         className
       )} 
       {...props}
     >
-      {children}
+      <div className="absolute inset-0 washi-texture opacity-30 pointer-events-none"></div>
+      <div className="relative z-10">{children}</div>
     </div>
   );
 };
@@ -34,33 +36,34 @@ interface WonderCardProps extends React.HTMLAttributes<HTMLDivElement> {
   colorClass?: string;
 }
 
-// Wonder Card - Updated to use Washi texture
+// Wonder Card - Enhanced with full border definition for consistency
 export const WonderCard: React.FC<WonderCardProps> = ({ children, colorClass = "bg-white border-bamboo/10", className = '', onClick, ...props }) => (
   <div 
     onClick={onClick} 
     className={cn(
-      `p-6 rounded-[32px] border-b-4 transition-all duration-300 relative overflow-hidden ${colorClass}`,
-      onClick && "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]",
+      `p-6 rounded-[32px] border-2 border-b-4 transition-all duration-300 relative overflow-hidden ${colorClass}`,
+      onClick && "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] active:border-b-2 active:translate-y-1",
       className
     )}
     {...props}
   >
-    <div className="absolute inset-0 washi-texture opacity-30"></div>
+    <div className="absolute inset-0 washi-texture opacity-30 pointer-events-none"></div>
     <div className="relative z-10 h-full">{children}</div>
   </div>
 );
 
-// New Feature Card for Dark/Hero content
+// Feature Card for Dark/Hero content - Updated with depth
 export const FeatureCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, children, ...props }) => {
   return (
     <div 
       className={cn(
-        "group relative overflow-hidden rounded-[32px] bg-ink text-rice shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-2 border-bamboo/20",
+        "group relative overflow-hidden rounded-[32px] bg-ink text-rice shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300",
+        "border-2 border-b-4 border-bamboo/20",
         className
       )}
       {...props}
     >
-      <div className="absolute inset-0 washi-texture opacity-20 pointer-events-none"></div>
+      <div className="absolute inset-0 washi-texture opacity-30 pointer-events-none"></div>
       <div className="absolute top-0 right-0 w-64 h-64 bg-hanko/20 rounded-full blur-[80px] -mr-16 -mt-16 transition-all group-hover:bg-hanko/30 pointer-events-none"></div>
       <div className="relative z-10 h-full">{children}</div>
     </div>

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { Badge, GlassCard } from '../components/UI';
-import { CheckCircle2, Circle, XCircle, ClipboardCheck, ArrowRight, RefreshCw } from 'lucide-react';
+import { Badge, GlassCard, WonderCard } from '../components/UI';
+import { CheckCircle2, Circle, XCircle, ClipboardCheck, ArrowRight, RefreshCw, Flame, Calendar as CalendarIcon } from 'lucide-react';
 import { progressService } from '../services/progressService';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,6 +30,105 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
     { id: '15', title: 'Lesson 6 Vocabulary', category: 'Vocab', targetId: 'vocab-lesson-6' },
     // Add more as needed for Lessons 7-25
 ];
+
+// --- Study Heatmap Component ---
+const StudyHeatmap: React.FC = () => {
+    // Generate mock data for the last 365 days
+    // In a real app, this would come from progressService.getActivityHistory()
+    const [heatmapData, setHeatmapData] = useState<{date: string, level: number}[][]>([]);
+
+    useEffect(() => {
+        const generateData = () => {
+            const weeks = [];
+            const today = new Date();
+            // Start roughly 52 weeks ago
+            const startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - 364);
+
+            // Adjust start date to be a Sunday/Monday to align grid if needed, 
+            // but for simple visualization, we just fill weeks.
+            
+            let currentWeek = [];
+            for (let i = 0; i < 365; i++) {
+                const d = new Date(startDate);
+                d.setDate(d.getDate() + i);
+                
+                // Simulate random activity
+                // Bias towards more activity in recent months (higher index)
+                const randomness = Math.random();
+                let level = 0;
+                
+                // Mock logic: 60% chance of 0, else 1-4
+                if (randomness > 0.6) {
+                    if (randomness > 0.95) level = 4;
+                    else if (randomness > 0.85) level = 3;
+                    else if (randomness > 0.75) level = 2;
+                    else level = 1;
+                }
+
+                currentWeek.push({
+                    date: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                    level
+                });
+
+                if (currentWeek.length === 7) {
+                    weeks.push(currentWeek);
+                    currentWeek = [];
+                }
+            }
+            if (currentWeek.length > 0) weeks.push(currentWeek);
+            setHeatmapData(weeks);
+        };
+
+        generateData();
+    }, []);
+
+    const getColor = (level: number) => {
+        switch (level) {
+            case 1: return 'bg-emerald-200';
+            case 2: return 'bg-emerald-400';
+            case 3: return 'bg-emerald-500';
+            case 4: return 'bg-emerald-700';
+            default: return 'bg-bamboo/10';
+        }
+    };
+
+    return (
+        <WonderCard className="w-full overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+                <Flame size={20} className="text-orange-500" />
+                <h3 className="font-bold text-ink text-lg">Study Activity</h3>
+                <span className="text-xs text-bamboo ml-auto hidden sm:inline">Last 12 Months</span>
+            </div>
+            
+            <div className="overflow-x-auto pb-2 custom-scrollbar">
+                <div className="flex gap-1 min-w-max">
+                    {heatmapData.map((week, wIndex) => (
+                        <div key={wIndex} className="flex flex-col gap-1">
+                            {week.map((day, dIndex) => (
+                                <div 
+                                    key={dIndex}
+                                    title={`${day.date}: ${day.level === 0 ? 'No activity' : 'Studied'}`}
+                                    className={`w-3 h-3 rounded-[2px] transition-colors hover:border hover:border-black/20 ${getColor(day.level)}`}
+                                />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="flex items-center gap-2 mt-3 text-[10px] text-bamboo font-bold justify-end">
+                <span>Less</span>
+                <div className="w-3 h-3 rounded-[2px] bg-bamboo/10"></div>
+                <div className="w-3 h-3 rounded-[2px] bg-emerald-200"></div>
+                <div className="w-3 h-3 rounded-[2px] bg-emerald-400"></div>
+                <div className="w-3 h-3 rounded-[2px] bg-emerald-500"></div>
+                <div className="w-3 h-3 rounded-[2px] bg-emerald-700"></div>
+                <span>More</span>
+            </div>
+        </WonderCard>
+    );
+};
 
 export const Checklist: React.FC = () => {
   const [scores, setScores] = useState<Record<string, number>>({});
@@ -91,6 +190,9 @@ export const Checklist: React.FC = () => {
             </span>
         </div>
       </div>
+
+      {/* Heatmap Section */}
+      <StudyHeatmap />
 
       <GlassCard className="!p-0 overflow-hidden">
           <div className="overflow-x-auto">

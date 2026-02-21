@@ -182,5 +182,50 @@ export const aiService = {
             ]
         };
     }
+  },
+
+  /**
+   * Generate a personalized daily learning goal based on user performance
+   */
+  generateDailyGoal: async (userData: { xp: number, streak: number, mistakesCount: number, srsDueCount: number }) => {
+    try {
+      const prompt = `Based on the following user performance data for a Japanese language learner (JLPT N5):
+      - Current XP: ${userData.xp}
+      - Current Streak: ${userData.streak}
+      - Number of recent mistakes: ${userData.mistakesCount}
+      - SRS items due for review: ${userData.srsDueCount}
+      
+      Generate a personalized daily goal (Mokuhyou) for today. 
+      The goal should be encouraging and realistic. 
+      Include:
+      1. A short message in Bengali (Bangla) explaining the goal.
+      2. Specific targets: number of new items to learn and number of items to review.
+      3. An overall progress percentage estimate for the day's goal.
+      
+      Return ONLY valid JSON with this structure:
+      {
+        "message": "The personalized message in Bengali",
+        "newItems": number,
+        "reviews": number,
+        "progress": number
+      }`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
+      });
+      
+      const text = response.text || "{}";
+      return JSON.parse(text);
+    } catch (error) {
+      console.warn("AI Goal generation error:", error);
+      return {
+        message: "আজকের লক্ষ্য: ৫টি নতুন শব্দ শিখুন এবং ১০টি পর্যালোচনা করুন। শুভকামনা!",
+        newItems: 5,
+        reviews: 10,
+        progress: 0
+      };
+    }
   }
 };
