@@ -1,5 +1,5 @@
 {
-  "name": "Remix: Quizeon 3.0 Admin",
-  "description": "Modern Japanese Learning Platform with Supabase-backed Admin Dashboard",
+  "name": "Quizeon 3.0 Admin",
+  "description": "A Japanese learning platform with a traditional 'Washi Paper' aesthetic, featuring earth tones, Sumi Ink colors, and Noto Sans JP calligraphy-inspired typography.",
   "requestFramePermissions": []
 }

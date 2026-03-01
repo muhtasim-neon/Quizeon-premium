@@ -1,0 +1,374 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-jp: "Noto Sans JP", sans-serif;
+  
+  /* Consolidate colors used in the app */
+  --color-rice: #FDFBF7;
+  --color-ink: #2D2420;
+  --color-hanko: #BC2F32;
+  --color-bamboo: #5A5A40;
+  --color-gold: #D4A373;
+  --color-wood: #8D6E63;
+  --color-straw: #D4A373;
+
+  /* Washi specific colors (used in UI.tsx) */
+  --color-washi-bg: #FDFBF7;
+  --color-washi-ink: #1C1C1C;
+  --color-washi-hanko: #BC2F32;
+  --color-washi-bamboo: #4A5D23;
+  --color-washi-wood: #704214;
+  --color-washi-gold: #C5A059;
+  --color-washi-indigo: #1A2E35;
+  
+  --radius-4xl: 2rem;
+  --radius-5xl: 3rem;
+
+  /* Futuristic Accents */
+  --color-neon-blue: #00D2FF;
+  --color-neon-purple: #9D50BB;
+}
+
+:root {
+  --bg: #FDFBF7;
+  --ink: #2D2420;
+  --hanko: #BC2F32;
+  --bamboo: #5A5A40;
+  --gold: #D4A373;
+  
+  /* Time Theme Defaults (Day) */
+  --theme-sky-top: #87CEEB;
+  --theme-sky-bottom: #E0F7FA;
+  --theme-mountain: #4A5568;
+  --theme-accent: #FFD700;
+  --theme-text: #2D2420;
+  --theme-card: rgba(255, 255, 255, 0.8);
+}
+
+/* Global Patterns */
+.bg-pattern {
+  background-image: radial-gradient(rgba(141, 110, 99, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Mesh Gradient Background */
+.bg-mesh {
+  background-color: #fdfbf7;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(188, 47, 50, 0.05) 0px, transparent 50%),
+    radial-gradient(at 50% 0%, rgba(212, 163, 115, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(90, 90, 64, 0.05) 0px, transparent 50%);
+}
+
+/* Glass Text Effect */
+.text-glass {
+  background: linear-gradient(to bottom right, #2D2420, #5A5A40);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+/* Animated Border Glow */
+.border-glow {
+  position: relative;
+}
+
+.border-glow::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(45deg, var(--color-hanko), var(--color-gold), var(--color-bamboo), var(--color-hanko));
+  background-size: 400%;
+  z-index: -1;
+  filter: blur(8px);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  animation: border-rotate 8s linear infinite;
+}
+
+.border-glow:hover::after {
+  opacity: 0.6;
+}
+
+@keyframes border-rotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+[data-theme='dawn'] {
+  --theme-sky-top: #2C3E50;
+  --theme-sky-bottom: #FD746C;
+  --theme-mountain: #1A252F;
+  --theme-accent: #FFB7B2;
+  --theme-text: #FDFBF7;
+  --theme-card: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme='day'] {
+  --theme-sky-top: #74ebd5;
+  --theme-sky-bottom: #ACB6E5;
+  --theme-mountain: #34495E;
+  --theme-accent: #FFD700;
+  --theme-text: #2D2420;
+  --theme-card: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme='sunset'] {
+  --theme-sky-top: #4B1248;
+  --theme-sky-bottom: #F0C27B;
+  --theme-mountain: #2C0E2B;
+  --theme-accent: #FF4500;
+  --theme-text: #FDFBF7;
+  --theme-card: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='night'] {
+  --theme-sky-top: #0F2027;
+  --theme-sky-bottom: #2C5364;
+  --theme-mountain: #050A0C;
+  --theme-accent: #F9D71C;
+  --theme-text: #FDFBF7;
+  --theme-card: rgba(255, 255, 255, 0.05);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: 'Noto Sans JP', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 1s ease, color 1s ease;
+}
+
+/* Global Washi Paper Overlay */
+.washi-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+/* Refined Washi Texture */
+.washi-texture {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* Tactile Paper Effect */
+.paper-card {
+  background: white;
+  border: 1px solid rgba(141, 110, 99, 0.1);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05), 
+    0 2px 4px -1px rgba(0, 0, 0, 0.03),
+    inset 0 0 20px rgba(253, 251, 247, 0.5);
+}
+
+.paper-card-tactile {
+  border-bottom: 4px solid rgba(141, 110, 99, 0.15);
+  transition: all 0.2s ease;
+}
+
+.paper-card-tactile:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+/* 3D Tactile Paper Effects */
+.washi-panel {
+  background: var(--theme-card);
+  backdrop-filter: blur(24px);
+  border-radius: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.1),
+    0 20px 40px -20px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.washi-panel:hover {
+  transform: translateY(-4px) scale(1.005);
+  box-shadow: 
+    0 20px 40px -15px rgba(0, 0, 0, 0.15),
+    0 30px 60px -30px rgba(0, 0, 0, 0.1);
+}
+
+.washi-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  border-radius: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.washi-card:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* 3D Button Effect */
+.btn-3d {
+  position: relative;
+  transition: all 0.1s ease;
+  border-bottom: 4px solid rgba(0, 0, 0, 0.2);
+}
+
+.btn-3d:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+/* Paper Fold Effect */
+.paper-fold {
+  position: relative;
+}
+
+.paper-fold::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 32px 32px 0;
+  border-color: transparent transparent rgba(255, 255, 255, 0.2) transparent;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.paper-fold:hover::after {
+  border-width: 0 40px 40px 0;
+}
+
+/* Vertical Writing Accents */
+.writing-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.2em;
+}
+
+/* Hanko Stamp Effect */
+.hanko-stamp {
+  border: 2px solid var(--hanko);
+  color: var(--hanko);
+  padding: 4px 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  display: inline-block;
+  transform: rotate(-5deg);
+  opacity: 0.9;
+}
+
+/* Grid Pattern */
+.bg-grid-washi {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(141, 110, 99, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(141, 110, 99, 0.05) 1px, transparent 1px);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gold);
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--washi-wood);
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.9); opacity: 0; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pop {
+  animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes bounce-slight {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-bounce-slight {
+  animation: bounce-slight 2s ease-in-out infinite;
+}
+
+/* Washi Theme & Sumi Ink Utilities */
+.washi-theme {
+  background-color: var(--color-rice);
+  color: var(--color-ink);
+  border: 1px solid rgba(212, 163, 115, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.washi-theme::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.text-sumi {
+  color: var(--color-ink);
+}
+
+.bg-rice-paper {
+  background-color: var(--color-rice);
+}
+
+.border-washi {
+  border-color: rgba(212, 163, 115, 0.4);
+}
+
+.shadow-washi {
+  box-shadow: 0 10px 30px -10px rgba(90, 90, 64, 0.1), 0 4px 6px -2px rgba(90, 90, 64, 0.05);
+}
+
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
