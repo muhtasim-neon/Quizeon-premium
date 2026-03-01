@@ -17,4 +17,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+
+let analytics = null;
+if (typeof window !== 'undefined') {
+  try {
+    analytics = getAnalytics(app);
+  } catch (e) {
+    console.warn("Firebase Analytics failed to initialize:", e);
+  }
+}
+export { analytics };
