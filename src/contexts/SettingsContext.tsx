@@ -140,6 +140,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsSpeaking(false);
         setIsPaused(false);
         utteranceRef.current = null;
+        if (timeoutId) clearTimeout(timeoutId);
         resolve();
       };
 
@@ -151,8 +152,20 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsSpeaking(false);
         setIsPaused(false);
         utteranceRef.current = null;
+        if (timeoutId) clearTimeout(timeoutId);
         resolve();
       };
+
+      // Safety timeout - some browsers fail to fire onend
+      const timeoutId = setTimeout(() => {
+        if (utteranceRef.current === utterance) {
+          console.warn("SpeechSynthesis safety timeout triggered");
+          setIsSpeaking(false);
+          setIsPaused(false);
+          utteranceRef.current = null;
+          resolve();
+        }
+      }, 10000); // 10s safety timeout
 
       window.speechSynthesis.speak(utterance);
     });

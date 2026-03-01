@@ -25,6 +25,13 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (user.isGuest) {
+      const newAvatar = avatarSeed !== user.username ? getAvatarUrl() : user.avatar;
+      const updatedUser = { ...user, username, avatar: newAvatar };
+      localStorage.setItem('quizeon_user', JSON.stringify(updatedUser));
+      onUpdate(updatedUser);
+      return;
+    }
     setLoading(true);
     
     const newAvatar = avatarSeed !== user.username ? getAvatarUrl() : user.avatar;
@@ -44,6 +51,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
   };
 
   const toggleRole = async () => {
+      if (user.isGuest) return;
       const newRole = user.role === 'admin' ? 'student' : 'admin';
       try {
         const userRef = doc(db, 'users', user.id);
@@ -54,6 +62,12 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
   };
 
   const handleLogout = async () => {
+    if (user.isGuest) {
+      localStorage.removeItem('quizeon_user');
+      window.location.href = '/#/login';
+      window.location.reload();
+      return;
+    }
     try {
       await signOut(auth);
     } catch (err) {
@@ -66,6 +80,15 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
       <div>
         <h1 className="text-3xl font-bold text-ink">Profile Settings</h1>
         <p className="text-bamboo">Manage your account information</p>
+        {user.isGuest && (
+          <div className="mt-4 p-4 bg-hanko/10 border border-hanko/20 rounded-2xl flex items-center gap-3">
+            <Shield className="text-hanko shrink-0" size={24} />
+            <div>
+              <p className="text-sm font-black text-hanko uppercase tracking-widest">Guest Mode Active</p>
+              <p className="text-xs text-bamboo font-medium">Your progress is only saved locally on this device. Create an account to sync your data across devices.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <WonderCard colorClass="bg-white border-bamboo/10">

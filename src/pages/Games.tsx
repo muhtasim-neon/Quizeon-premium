@@ -19,6 +19,8 @@ import { LearningItem } from '@/types';
 import { useSettings } from '@/contexts/SettingsContext';
 import { progressService } from '@/services/progressService';
 
+import { User } from '@/types';
+
 // --- SHARED COMPONENTS ---
 
 const GameHeader: React.FC<{ score: number, lives: number, timeLeft?: number, combo?: number, onExit: () => void }> = ({ score, lives, timeLeft, combo, onExit }) => (
@@ -738,7 +740,7 @@ const GenericArcadeGame: React.FC<{ mode: GameMode; onExit: () => void }> = ({ m
     );
 };
 
-export const Games: React.FC = () => {
+export const Games: React.FC<{ user: User }> = ({ user }) => {
     const [selectedGame, setSelectedGame] = useState<string | null>(null);
     const [category, setCategory] = useState<'All' | 'Arcade' | 'Vocab' | 'Grammar' | 'Culture'>('All');
 
@@ -755,28 +757,28 @@ export const Games: React.FC = () => {
 
     const GAME_LIST = [
         // Original 6
-        { id: 'kana_storm', name: 'Kana Storm', icon: Wind, color: 'blue', desc: 'Catch falling kana.', cat: 'Arcade' },
-        { id: 'samurai_slash', name: 'Samurai Slash', icon: Swords, color: 'red', desc: 'Slice correct answers.', cat: 'Arcade' },
-        { id: 'match_arena', name: 'Match Arena', icon: ArrowRightLeft, color: 'green', desc: 'Find matching pairs.', cat: 'Arcade' },
-        { id: 'typing_ninja', name: 'Typing Ninja', icon: Keyboard, color: 'purple', desc: 'Speed typing drill.', cat: 'Arcade' },
-        { id: 'confusion_killer', name: 'Confusion Killer', icon: ZapOff, color: 'orange', desc: 'Master similar kana.', cat: 'Arcade' },
-        { id: 'survival_mode', name: 'Survival Mode', icon: Flame, color: 'slate', desc: '60s Time Attack.', cat: 'Arcade' },
+        { id: 'kana_storm', name: 'Kana Storm', icon: Wind, color: 'blue', desc: 'Catch falling kana.', cat: 'Arcade', premium: false },
+        { id: 'samurai_slash', name: 'Samurai Slash', icon: Swords, color: 'red', desc: 'Slice correct answers.', cat: 'Arcade', premium: false },
+        { id: 'match_arena', name: 'Match Arena', icon: ArrowRightLeft, color: 'green', desc: 'Find matching pairs.', cat: 'Arcade', premium: false },
+        { id: 'typing_ninja', name: 'Typing Ninja', icon: Keyboard, color: 'purple', desc: 'Speed typing drill.', cat: 'Arcade', premium: false },
+        { id: 'confusion_killer', name: 'Confusion Killer', icon: ZapOff, color: 'orange', desc: 'Master similar kana.', cat: 'Arcade', premium: false },
+        { id: 'survival_mode', name: 'Survival Mode', icon: Flame, color: 'slate', desc: '60s Time Attack.', cat: 'Arcade', premium: true },
         
         // 14 Generic V1
-        { id: 'flash_recall', name: 'Flash Recall', icon: Eye, color: 'amber', desc: 'Visual memory test.', cat: 'Vocab' },
-        { id: 'number_ninja', name: 'Number Ninja', icon: Hash, color: 'indigo', desc: 'Audio number drill.', cat: 'Vocab' },
-        { id: 'particle_power', name: 'Particle Power', icon: Link, color: 'pink', desc: 'Grammar particles.', cat: 'Grammar' },
-        { id: 'true_false', name: 'True or False', icon: Check, color: 'cyan', desc: 'Rapid verification.', cat: 'Vocab' },
-        { id: 'odd_one_out', name: 'Odd One Out', icon: HelpCircle, color: 'rose', desc: 'Logic puzzle.', cat: 'Vocab' },
-        { id: 'counter_strike', name: 'Counter Strike', icon: Scale, color: 'emerald', desc: 'Counting items.', cat: 'Grammar' },
-        { id: 'antonym_assault', name: 'Antonym Assault', icon: ArrowRightLeft, color: 'fuchsia', desc: 'Opposites attract.', cat: 'Vocab' },
-        { id: 'synonym_sniper', name: 'Synonym Sniper', icon: Copy, color: 'violet', desc: 'Find similarities.', cat: 'Vocab' },
-        { id: 'emoji_match', name: 'Emoji Match', icon: Smile, color: 'yellow', desc: 'Visual vocab.', cat: 'Vocab' },
-        { id: 'audio_grid', name: 'Audio Grid', icon: Grid, color: 'sky', desc: 'Listening matrix.', cat: 'Vocab' },
-        { id: 'category_chaos', name: 'Category Chaos', icon: Layers, color: 'lime', desc: 'Sort words fast.', cat: 'Vocab' },
-        { id: 'reflex_dojo', name: 'Reflex Dojo', icon: Zap, color: 'zinc', desc: 'Reaction training.', cat: 'Arcade' },
-        { id: 'sentence_scramble', name: 'Sentence Scramble', icon: AlignLeft, color: 'teal', desc: 'Order the words.', cat: 'Grammar' },
-        { id: 'zen_focus', name: 'Zen Focus', icon: Moon, color: 'stone', desc: 'Relax and breathe.', cat: 'Arcade' },
+        { id: 'flash_recall', name: 'Flash Recall', icon: Eye, color: 'amber', desc: 'Visual memory test.', cat: 'Vocab', premium: true },
+        { id: 'number_ninja', name: 'Number Ninja', icon: Hash, color: 'indigo', desc: 'Audio number drill.', cat: 'Vocab', premium: true },
+        { id: 'particle_power', name: 'Particle Power', icon: Link, color: 'pink', desc: 'Grammar particles.', cat: 'Grammar', premium: true },
+        { id: 'true_false', name: 'True or False', icon: Check, color: 'cyan', desc: 'Rapid verification.', cat: 'Vocab', premium: true },
+        { id: 'odd_one_out', name: 'Odd One Out', icon: HelpCircle, color: 'rose', desc: 'Logic puzzle.', cat: 'Vocab', premium: true },
+        { id: 'counter_strike', name: 'Counter Strike', icon: Scale, color: 'emerald', desc: 'Counting items.', cat: 'Grammar', premium: true },
+        { id: 'antonym_assault', name: 'Antonym Assault', icon: ArrowRightLeft, color: 'fuchsia', desc: 'Opposites attract.', cat: 'Vocab', premium: true },
+        { id: 'synonym_sniper', name: 'Synonym Sniper', icon: Copy, color: 'violet', desc: 'Find similarities.', cat: 'Vocab', premium: true },
+        { id: 'emoji_match', name: 'Emoji Match', icon: Smile, color: 'yellow', desc: 'Visual vocab.', cat: 'Vocab', premium: true },
+        { id: 'audio_grid', name: 'Audio Grid', icon: Grid, color: 'sky', desc: 'Listening matrix.', cat: 'Vocab', premium: true },
+        { id: 'category_chaos', name: 'Category Chaos', icon: Layers, color: 'lime', desc: 'Sort words fast.', cat: 'Vocab', premium: true },
+        { id: 'reflex_dojo', name: 'Reflex Dojo', icon: Zap, color: 'zinc', desc: 'Reaction training.', cat: 'Arcade', premium: true },
+        { id: 'sentence_scramble', name: 'Sentence Scramble', icon: AlignLeft, color: 'teal', desc: 'Order the words.', cat: 'Grammar', premium: true },
+        { id: 'zen_focus', name: 'Zen Focus', icon: Moon, color: 'stone', desc: 'Relax and breathe.', cat: 'Arcade', premium: true },
 
         // 30 New Games
         { id: 'kanji_kicker', name: 'Kanji Kicker', icon: GraduationCap, color: 'red', desc: 'Recognize N5 Kanji.', cat: 'Vocab' },
@@ -855,9 +857,20 @@ export const Games: React.FC = () => {
                     <WonderCard 
                         key={game.id} 
                         colorClass={`bg-${game.color}-50 border-${game.color}-200 text-${game.color}-900`} 
-                        onClick={() => setSelectedGame(game.id)} 
-                        className="p-4 text-center group cursor-pointer hover:shadow-xl transition-all flex flex-col items-center justify-center min-h-[160px]"
+                        onClick={() => {
+                            if (user.isGuest && game.premium) {
+                                alert("Guest Mode: This game is locked. Please sign up to unlock all games!");
+                                return;
+                            }
+                            setSelectedGame(game.id);
+                        }} 
+                        className={`p-4 text-center group cursor-pointer hover:shadow-xl transition-all flex flex-col items-center justify-center min-h-[160px] relative ${user.isGuest && game.premium ? 'opacity-60 grayscale-[0.5]' : ''}`}
                     >
+                        {game.premium && (
+                            <div className="absolute top-2 right-2">
+                                {user.isGuest ? <Lock size={12} className="text-hanko" /> : <Crown size={12} className="text-yellow-600" />}
+                            </div>
+                        )}
                         <game.icon size={32} className={`mx-auto mb-3 text-${game.color}-600 group-hover:scale-110 transition-transform`} />
                         <h3 className="text-sm font-bold mb-1 leading-tight">{game.name}</h3>
                         <p className="text-[10px] opacity-70 font-bold">{game.desc}</p>

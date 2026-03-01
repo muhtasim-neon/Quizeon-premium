@@ -4,27 +4,39 @@ import { auth, db } from '@/services/firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  sendEmailVerification,
   sendPasswordResetEmail,
   signOut
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { GlassCard, Button, Input, Badge, Modal, cn } from '@/components/UI';
-import { LogIn, UserPlus, Globe, Mail, Lock, Loader2, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react';
+import { LogIn, UserPlus, Globe, Mail, Lock, Loader2, CheckCircle, AlertCircle, Info, RefreshCw, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '@/types';
 
 export const Login: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [showVerification, setShowVerification] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [needsVerification, setNeedsVerification] = useState(false);
   const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [lockoutTime, setLockoutTime] = useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (lockoutTime) {
+      const timer = setInterval(() => {
+        if (Date.now() >= lockoutTime) {
+          setLockoutTime(null);
+          setAttempts(0);
+          clearInterval(timer);
+        }
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [lockoutTime]);
 
   const getPasswordStrength = (pass: string) => {
     let strength = 0;
@@ -39,10 +51,14 @@ export const Login: React.FC = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (lockoutTime) {
+      const remaining = Math.ceil((lockoutTime - Date.now()) / 1000);
+      setError(`Too many failed attempts. Please wait ${remaining} seconds before trying again.`);
+      return;
+    }
     setLoading(true);
     setError(null);
     setSuccess(null);
-    setNeedsVerification(false);
     setIsAlreadyRegistered(false);
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,18 +70,11 @@ export const Login: React.FC = () => {
 
     try {
       if (isLogin) {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        if (!userCredential.user.emailVerified) {
-          setError("Verification Required: Please check your inbox (and spam folder) and verify your email before entering the Dojo.");
-          setNeedsVerification(true);
-          await signOut(auth);
-        }
+        await signInWithEmailAndPassword(auth, email, password);
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
-        await sendEmailVerification(user);
-
         const userData: User = {
           id: user.uid,
           username: username || email.split('@')[0],
@@ -80,14 +89,21 @@ export const Login: React.FC = () => {
         };
         
         await setDoc(doc(db, 'users', user.uid), userData);
-        
-        // Small delay to ensure auth state has settled before showing modal
-        setTimeout(() => {
-          setShowVerification(true);
-        }, 100);
       }
     } catch (err: any) {
       console.error("Auth Error:", err.code, err.message);
+      
+      if (isLogin) {
+        setAttempts(prev => {
+          const newAttempts = prev + 1;
+          if (newAttempts >= 5) {
+            setLockoutTime(Date.now() + 60000); // 1 minute lockout
+            setError("Too many failed attempts. Your account is temporarily locked for 60 seconds.");
+          }
+          return newAttempts;
+        });
+      }
+
       switch (err.code) {
         case 'auth/email-already-in-use':
           setError("This email is already part of our Dojo. Would you like to log in instead?");
@@ -128,6 +144,26 @@ export const Login: React.FC = () => {
     }
   };
 
+  const handleGuestLogin = () => {
+    setLoading(true);
+    const guestUser: User = {
+      id: `guest_${Math.random().toString(36).substr(2, 9)}`,
+      username: 'Guest Sensei',
+      role: 'student',
+      subscription: 'free',
+      xp: 0,
+      streak: 0,
+      avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=guest`,
+      joinedDate: new Date().toISOString(),
+      lastActive: new Date().toISOString(),
+      isGuest: true
+    };
+    
+    localStorage.setItem('quizeon_user', JSON.stringify(guestUser));
+    window.dispatchEvent(new Event('user-update'));
+    setLoading(false);
+  };
+
   const handleForgotPassword = async () => {
     if (!email) {
       setError("Please enter your email address first to reset your password.");
@@ -146,117 +182,8 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleResendVerification = async () => {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      if (auth.currentUser) {
-        await sendEmailVerification(auth.currentUser);
-        setSuccess("Verification email resent! Please check your inbox (and spam folder).");
-      } else {
-        setError("Please try logging in with your credentials. If you are not verified, you will see an option to resend the email.");
-      }
-    } catch (err: any) {
-      setError("Could not resend verification email. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-rice overflow-hidden">
-      <AnimatePresence>
-        {showVerification && (
-          <Modal 
-            isOpen={showVerification} 
-            onClose={async () => {
-              const user = auth.currentUser;
-              if (user) {
-                await user.reload();
-                if (user.emailVerified) {
-                  // If verified, just close modal. App.tsx polling or next state change will handle redirect.
-                  setShowVerification(false);
-                  return;
-                }
-              }
-              // If still not verified, sign out and go back to login
-              await signOut(auth);
-              setShowVerification(false);
-              setIsLogin(true);
-            }}
-            title="Verify Your Email"
-          >
-            <div className="text-center">
-              <div className="inline-block p-4 bg-green-50 rounded-full mb-6">
-                <CheckCircle size={64} className="text-green-500" />
-              </div>
-              
-              <div className="text-left space-y-4 mb-8">
-                <p className="text-bamboo font-medium">
-                  We have sent a verification email to: <br/>
-                  <span className="text-ink font-black break-all">{email}</span>
-                </p>
-                
-                <div className="space-y-3 bg-rice/50 p-4 rounded-2xl border border-bamboo/10">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-hanko">Next Steps:</p>
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-ink text-rice flex items-center justify-center text-xs font-bold shrink-0">1</div>
-                    <p className="text-xs text-bamboo font-bold">Check your inbox and <span className="text-hanko">Spam folder</span>.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-ink text-rice flex items-center justify-center text-xs font-bold shrink-0">2</div>
-                    <p className="text-xs text-bamboo font-bold">Click the verification link provided in the email.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-ink text-rice flex items-center justify-center text-xs font-bold shrink-0">3</div>
-                    <p className="text-xs text-bamboo font-bold">Once verified, you will be <span className="text-ink">automatically redirected</span> to the Dojo.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-ink text-rice flex items-center justify-center text-xs font-bold shrink-0">4</div>
-                    <p className="text-xs text-bamboo font-bold text-hanko">Or click OK below to check status manually.</p>
-                  </div>
-                </div>
-              </div>
-
-              <AnimatePresence>
-                {success && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="mb-6 p-3 bg-green-50 border border-green-100 rounded-xl text-green-700 text-xs font-bold flex items-start gap-2"
-                  >
-                    <Info size={14} className="mt-0.5 shrink-0" />
-                    <span>{success}</span>
-                  </motion.div>
-                )}
-                {error && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-bold flex items-start gap-2"
-                  >
-                    <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                    <span>{error}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <button 
-                onClick={handleResendVerification}
-                disabled={loading}
-                className="text-xs font-bold text-bamboo hover:text-hanko transition-colors uppercase tracking-widest flex items-center justify-center w-full gap-2"
-              >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                Resend Verification Email
-              </button>
-            </div>
-          </Modal>
-        )}
-      </AnimatePresence>
-
       {/* Decorative Side - Desktop Only */}
       <div className="hidden lg:flex lg:w-1/2 bg-ink relative items-center justify-center p-20 overflow-hidden">
         <div className="absolute inset-0 washi-texture opacity-10"></div>
@@ -482,16 +409,6 @@ export const Login: React.FC = () => {
                       {error ? <AlertCircle size={16} className="shrink-0" /> : <Info size={16} className="shrink-0" />}
                       <span>{error || success}</span>
                     </div>
-                    {error && needsVerification && (
-                      <button 
-                        type="button"
-                        onClick={handleResendVerification}
-                        className="text-[10px] text-hanko hover:underline uppercase tracking-widest font-black self-end flex items-center gap-1"
-                      >
-                        <RefreshCw size={10} />
-                        Resend Verification Email
-                      </button>
-                    )}
                     {error && isAlreadyRegistered && (
                       <button 
                         type="button"
@@ -514,6 +431,25 @@ export const Login: React.FC = () => {
                 {loading ? <Loader2 className="animate-spin" /> : (isLogin ? <LogIn size={20} /> : <UserPlus size={20} />)}
                 {isLogin ? 'Enter Dojo' : 'Begin Journey'}
               </Button>
+
+              <div className="relative py-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-bamboo/10"></div>
+                </div>
+                <div className="relative flex justify-center text-[10px] uppercase tracking-widest font-black">
+                  <span className="bg-white px-4 text-bamboo">Or</span>
+                </div>
+              </div>
+
+              <button 
+                type="button"
+                onClick={handleGuestLogin}
+                disabled={loading}
+                className="w-full py-4 rounded-2xl border-2 border-bamboo/10 text-ink font-black text-xs uppercase tracking-widest hover:bg-rice transition-all flex items-center justify-center gap-2"
+              >
+                <UserIcon size={16} />
+                Use as a Guest
+              </button>
             </form>
           </GlassCard>
 

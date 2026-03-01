@@ -22,7 +22,10 @@ export const progressService = {
 
     // 2. Firebase update (Sync to Cloud)
     const currentUser = auth.currentUser;
-    if (currentUser) {
+    const userStrAfter = localStorage.getItem('quizeon_user');
+    const isGuest = userStrAfter ? (JSON.parse(userStrAfter) as User).isGuest : false;
+
+    if (currentUser && !isGuest) {
         const userRef = doc(db, 'users', currentUser.uid);
         try {
             await updateDoc(userRef, {

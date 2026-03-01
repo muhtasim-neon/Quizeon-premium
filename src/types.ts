@@ -16,6 +16,7 @@ export interface User {
   mostUsedSection?: string; // e.g., 'Arcade', 'Kanji', 'Reading'
   provider?: string; // e.g., 'email', 'google'
   metadata?: any; // Store raw Supabase/Auth data for Admin inspection
+  isGuest?: boolean;
 }
 
 export interface ContentAnalytics {

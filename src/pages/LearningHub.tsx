@@ -9,7 +9,7 @@ import {
     PenTool, Timer, Heart, Zap, Wand2, RefreshCw, Square, MessageCircle,
     Frown, Play, SortAsc, X, ListOrdered, Crosshair, Eye, Music,
     Ear, Briefcase, Coffee, Pause, Loader2, Ghost, ThumbsDown, Flame, Sparkles,
-    ChevronRight, Check, AlertTriangle, Circle, Swords
+    ChevronRight, Check, AlertTriangle, Circle, Swords, Lock, Crown
 } from 'lucide-react';
 import { 
     VOCAB_DATA, KANA_DATA, KANJI_DATA, GRAMMAR_DATA, 
@@ -17,7 +17,7 @@ import {
     COUNTER_CATEGORIES, NUMBER_CATEGORIES, CONVERSATION_DATA,
     LISTENING_DATA, FORMAL_INFORMAL_DATA
 } from '@/data/mockContent';
-import { LearningItem, StoryContent, ConversationTopic, SongContent } from '@/types';
+import { LearningItem, StoryContent, ConversationTopic, SongContent, User } from '@/types';
 import { progressService } from '@/services/progressService';
 import { aiService } from '@/services/aiService';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -1182,9 +1182,14 @@ const KanjiCard: React.FC<{ item: LearningItem; isActive?: boolean }> = ({ item,
         <GlassCard 
             id={`card-${item.id}`}
             className={`relative group hover:border-hanko/30 transition-all cursor-pointer overflow-hidden h-full flex flex-col shadow-sm bg-white/60 
-            ${isActive ? '!border-hanko !bg-white !scale-105 !shadow-2xl !z-30 !ring-4 !ring-hanko/20 -translate-y-2' : 'hover:-translate-y-1 hover:shadow-lg'}`}
+            ${isActive ? '!border-hanko !bg-white !scale-105 !shadow-2xl !z-30 !ring-4 !ring-hanko/30 -translate-y-2' : 'hover:-translate-y-1 hover:shadow-lg'}`}
             onClick={() => speak(item.ja)}
         >
+            {isActive && (
+                <div className="absolute top-3 right-10 z-20">
+                    <Volume2 size={16} className="text-hanko animate-bounce" />
+                </div>
+            )}
             <div className="absolute top-3 right-3 flex gap-2 z-20">
                 <button 
                     onClick={startAnimation}
@@ -1280,10 +1285,15 @@ const VocabPracticeCard: React.FC<{ item: LearningItem; isActive?: boolean; isPl
             id={`card-${item.id}`}
             className={`relative group border-white transition-all duration-300 cursor-pointer overflow-hidden transform active:scale-95 bg-white/60 h-full flex flex-col 
             ${isPracticing ? 'col-span-full md:col-span-2 lg:col-span-3 min-h-[400px] z-10' : 
-              isActive ? '!border-hanko !bg-white !scale-105 !shadow-2xl !z-30 !ring-4 !ring-hanko/20 -translate-y-2' : 'hover:-translate-y-1.5 shadow-sm hover:shadow-xl'}`}
+              isActive ? '!border-hanko !bg-white !scale-105 !shadow-2xl !z-30 !ring-4 !ring-hanko/30 -translate-y-2' : 'hover:-translate-y-1.5 shadow-sm hover:shadow-xl'}`}
             onClick={(e) => !isPracticing ? startPractice(e) : speak(item.ja)}
             onMouseEnter={() => { if (!isPracticing && !isPlayingAll) speak(item.ja); }}
         >
+            {isActive && !isPracticing && (
+                <div className="absolute top-2 right-2 z-20">
+                    <Volume2 size={16} className="text-hanko animate-bounce" />
+                </div>
+            )}
             {isPracticing ? (
                 <div className="flex flex-col h-full animate-fade-in">
                     <div className="flex justify-between items-center mb-6 border-b border-bamboo/10 pb-4">
@@ -1378,7 +1388,7 @@ const ConversationDetailView: React.FC<{ topic: ConversationTopic; onBack: () =>
 
 // --- MAIN LEARNING HUB ---
 
-export const LearningHub: React.FC = () => {
+export const LearningHub: React.FC<{ user: User }> = ({ user }) => {
     const uniqueVocabCats = Array.from(new Set(VOCAB_DATA.map(v => v.category))).filter(Boolean) as string[];
     const uniqueKanjiCats = Array.from(new Set(KANJI_DATA.map(v => v.category))).filter(Boolean) as string[];
     const uniqueLessons = Array.from(new Set(VOCAB_DATA.map(v => v.lesson)))
@@ -1420,12 +1430,14 @@ export const LearningHub: React.FC = () => {
             if (isPlayingAll) {
                 stopAudio();
                 setIsPlayingAll(false);
+                isPlayingRef.current = false;
                 setActiveCardId(null);
             }
         };
     }, [viewMode, activeSection, isPlayingAll, stopAudio]);
 
     const handleLessonComplete = (score: number, total: number) => {
+        if (user.isGuest) return;
         if (score / total >= 0.8) {
              if (activeSection === 'grammar') progressService.markLessonComplete(`grammar-lesson-${selectedLesson}`);
              if (activeSection === 'vocab' && lessonMode === 'lesson') progressService.markLessonComplete(`vocab-lesson-${selectedLesson}`);
@@ -1486,8 +1498,18 @@ export const LearningHub: React.FC = () => {
             setActiveCardId(null);
             return;
         }
+
+        if (!currentContent || currentContent.length === 0) {
+            console.warn("No content to play");
+            return;
+        }
+
         setIsPlayingAll(true);
         isPlayingRef.current = true;
+        
+        // Ensure any previous audio is stopped
+        stopAudio();
+        await new Promise(r => setTimeout(r, 200));
         
         // Use a local copy to avoid closure issues
         const contentToPlay = [...currentContent];
@@ -1516,6 +1538,7 @@ export const LearningHub: React.FC = () => {
             if (!isPlayingRef.current) break;
             
             try {
+                // Speak the item text
                 await speak(item.ja);
             } catch (e) {
                 console.error("Speech failed", e);
@@ -1527,9 +1550,12 @@ export const LearningHub: React.FC = () => {
             }
         }
         
-        setIsPlayingAll(false);
-        isPlayingRef.current = false;
-        setActiveCardId(null);
+        // Final check to ensure we only reset if we finished naturally
+        if (isPlayingRef.current) {
+            setIsPlayingAll(false);
+            isPlayingRef.current = false;
+            setActiveCardId(null);
+        }
     };
     
     const getAvailableModes = () => {
@@ -1554,17 +1580,17 @@ export const LearningHub: React.FC = () => {
 
     if (!activeSection) {
         const menus = [
-            { id: 'kana', title: 'Hiragana & Katakana', desc: 'Master the native Japanese syllabary (Basic, Dakuten, Youon).', icon: Languages, color: 'text-hanko', bg: 'bg-hanko/10', border: 'border-hanko/20' },
-            { id: 'listening', title: 'Listening Practice', desc: 'Train your ears with native audio.', icon: Ear, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-200' },
-            { id: 'conversation', title: 'Conversation Dojo', desc: 'Real-life scenarios & dialogues.', icon: MessageCircle, color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200' },
-            { id: 'formal_informal', title: 'Formal vs Informal', desc: 'Polite (Desu/Masu) vs Casual forms.', icon: Scale, color: 'text-orange-600', bg: 'bg-orange-100', border: 'border-orange-200' },
-            { id: 'vocab', title: 'Vocabulary', desc: 'Minna no Nihongo essential words.', icon: Book, color: 'text-ink', bg: 'bg-ink/10', border: 'border-ink/20' },
-            { id: 'kanji', title: 'Kanji', desc: 'Characters and meanings.', icon: BookOpen, color: 'text-straw', bg: 'bg-straw/20', border: 'border-straw/30' },
-            { id: 'grammar', title: 'Grammar', desc: 'Sentence structures and rules.', icon: PenTool, color: 'text-bamboo', bg: 'bg-bamboo/20', border: 'border-bamboo/30' },
-            { id: 'counter', title: 'Counters', desc: 'Counting things, people, dates.', icon: Scale, color: 'text-green-600', bg: 'bg-green-100', border: 'border-green-200' },
-            { id: 'number', title: 'Numbers', desc: 'Time, prices, and math.', icon: Hash, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
-            { id: 'synonym', title: 'Synonyms', desc: 'Similar words expansion.', icon: Copy, color: 'text-pink-500', bg: 'bg-pink-100', border: 'border-pink-200' },
-            { id: 'antonym', title: 'Antonyms', desc: 'Opposites and pairs.', icon: ArrowRightLeft, color: 'text-orange-500', bg: 'bg-orange-100', border: 'border-orange-200' },
+            { id: 'kana', title: 'Hiragana & Katakana', desc: 'Master the native Japanese syllabary (Basic, Dakuten, Youon).', icon: Languages, color: 'text-hanko', bg: 'bg-hanko/10', border: 'border-hanko/20', premium: false },
+            { id: 'listening', title: 'Listening Practice', desc: 'Train your ears with native audio.', icon: Ear, color: 'text-blue-500', bg: 'bg-blue-100', border: 'border-blue-200', premium: true },
+            { id: 'conversation', title: 'Conversation Dojo', desc: 'Real-life scenarios & dialogues.', icon: MessageCircle, color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200', premium: true },
+            { id: 'formal_informal', title: 'Formal vs Informal', desc: 'Polite (Desu/Masu) vs Casual forms.', icon: Scale, color: 'text-orange-600', bg: 'bg-orange-100', border: 'border-orange-200', premium: true },
+            { id: 'vocab', title: 'Vocabulary', desc: 'Minna no Nihongo essential words.', icon: Book, color: 'text-ink', bg: 'bg-ink/10', border: 'border-ink/20', premium: false },
+            { id: 'kanji', title: 'Kanji', desc: 'Characters and meanings.', icon: BookOpen, color: 'text-straw', bg: 'bg-straw/20', border: 'border-straw/30', premium: false },
+            { id: 'grammar', title: 'Grammar', desc: 'Sentence structures and rules.', icon: PenTool, color: 'text-bamboo', bg: 'bg-bamboo/20', border: 'border-bamboo/30', premium: false },
+            { id: 'counter', title: 'Counters', desc: 'Counting things, people, dates.', icon: Scale, color: 'text-green-600', bg: 'bg-green-100', border: 'border-green-200', premium: false },
+            { id: 'number', title: 'Numbers', desc: 'Time, prices, and math.', icon: Hash, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200', premium: false },
+            { id: 'synonym', title: 'Synonyms', desc: 'Similar words expansion.', icon: Copy, color: 'text-pink-500', bg: 'bg-pink-100', border: 'border-pink-200', premium: true },
+            { id: 'antonym', title: 'Antonyms', desc: 'Opposites and pairs.', icon: ArrowRightLeft, color: 'text-orange-500', bg: 'bg-orange-100', border: 'border-orange-200', premium: true },
         ];
   
         return (
@@ -1577,11 +1603,32 @@ export const LearningHub: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
                     {menus.map(m => (
-                        <GlassCard key={m.id} hoverEffect onClick={() => setActiveSection(m.id as SectionType)} className={`cursor-pointer group border-t-4 ${m.border.replace('border-', 'border-t-')}`}>
-                            <div className={`w-14 h-14 rounded-2xl ${m.bg} ${m.color} flex items-center justify-center mb-5 transition-transform group-hover:scale-110 shadow-sm`}>
-                                <m.icon size={28} />
+                        <GlassCard 
+                            key={m.id} 
+                            hoverEffect 
+                            onClick={() => {
+                                if (user.isGuest && m.premium) {
+                                    alert("Guest Mode: This is a Premium feature. Please sign up to unlock!");
+                                    return;
+                                }
+                                setActiveSection(m.id as SectionType);
+                            }} 
+                            className={`cursor-pointer group border-t-4 ${m.border.replace('border-', 'border-t-')} ${user.isGuest && m.premium ? 'opacity-60 grayscale-[0.5]' : ''}`}
+                        >
+                            <div className="flex justify-between items-start mb-5">
+                                <div className={`w-14 h-14 rounded-2xl ${m.bg} ${m.color} flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm`}>
+                                    <m.icon size={28} />
+                                </div>
+                                {m.premium && (
+                                    <Badge color={user.isGuest ? "bg-hanko text-rice border-hanko/20" : "bg-yellow-100 text-yellow-700 border-yellow-200"}>
+                                        {user.isGuest ? <Lock size={10} className="mr-1 inline" /> : <Crown size={10} className="mr-1 inline" />}
+                                        Premium
+                                    </Badge>
+                                )}
                             </div>
-                            <h3 className="text-2xl font-bold text-ink mb-2 group-hover:text-hanko transition-colors">{m.title}</h3>
+                            <h3 className="text-2xl font-bold text-ink mb-2 group-hover:text-hanko transition-colors flex items-center gap-2">
+                                {m.title}
+                            </h3>
                             <p className="text-sm text-bamboo leading-relaxed">{m.desc}</p>
                         </GlassCard>
                     ))}
@@ -1685,6 +1732,13 @@ export const LearningHub: React.FC = () => {
                                 ))}
                             </div>
                             <div className="ml-auto flex items-center gap-2">
+                                <button 
+                                    onClick={() => setSortMethod(sortMethod === 'random' ? 'default' : 'random')} 
+                                    className={`p-2 rounded-xl transition-all border shadow-sm ${sortMethod === 'random' ? 'bg-hanko text-white border-hanko' : 'bg-white text-bamboo border-bamboo/10 hover:text-hanko hover:border-hanko/30'}`} 
+                                    title="Shuffle Items"
+                                >
+                                    <RefreshCw size={16} className={sortMethod === 'random' ? 'animate-spin' : ''} />
+                                </button>
                                 {isPlayingAll ? (
                                     <Button size="sm" variant="danger" onClick={handlePlayAll} className="rounded-xl shadow-lg animate-pulse">
                                         <Square size={14} fill="currentColor" className="mr-2" /> Stop
@@ -1716,9 +1770,11 @@ export const LearningHub: React.FC = () => {
                                         onClick={() => speak(item.ja)}
                                     >
                                         <div className="absolute inset-0 washi-texture opacity-30 pointer-events-none" />
-                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-bamboo/50">
-                                            <Volume2 size={16} />
-                                        </div>
+                                        {activeCardId === item.id && (
+                                            <div className="absolute top-2 right-2">
+                                                <Volume2 size={16} className="text-hanko animate-bounce" />
+                                            </div>
+                                        )}
 
                                         {isMixed ? (
                                             <div className="flex items-center justify-around w-full px-4 relative z-10">
@@ -1821,6 +1877,13 @@ export const LearningHub: React.FC = () => {
                                     <SortAsc size={18} />
                                  </button>
                                  <button 
+                                    onClick={() => setSortMethod(sortMethod === 'random' ? 'default' : 'random')} 
+                                    className={`p-2.5 rounded-xl transition-all border shadow-sm ${sortMethod === 'random' ? 'bg-hanko text-white border-hanko' : 'bg-white text-bamboo border-bamboo/10 hover:text-hanko hover:border-hanko/30'}`} 
+                                    title="Shuffle Items"
+                                 >
+                                    <RefreshCw size={18} className={sortMethod === 'random' ? 'animate-spin' : ''} />
+                                 </button>
+                                 <button 
                                     onClick={handlePlayAll} 
                                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all border shadow-sm font-bold text-sm ${isPlayingAll ? 'bg-red-500 text-white border-red-600 animate-pulse' : 'bg-white text-bamboo border-bamboo/10 hover:text-hanko hover:border-hanko/30'}`} 
                                     title="Play All"
@@ -1835,10 +1898,23 @@ export const LearningHub: React.FC = () => {
                             {currentContent.map((item) => (
                                 activeSection === 'kanji' ? <KanjiCard key={item.id} item={item} isActive={activeCardId === item.id} /> :
                                 activeSection === 'vocab' ? <VocabPracticeCard key={item.id} item={item} isActive={activeCardId === item.id} /> :
-                                <GlassCard key={item.id} id={`card-${item.id}`} className={`relative group transition-all cursor-pointer ${activeCardId === item.id ? 'border-hanko scale-105 shadow-xl z-10' : 'hover:border-hanko/30'}`} onClick={() => speak(item.ja)}>
-                                    <div className="text-3xl font-jp font-bold text-ink mb-2">{item.ja}</div>
+                                 <GlassCard 
+                                    key={item.id} 
+                                    id={`card-${item.id}`} 
+                                    className={`relative group transition-all duration-500 cursor-pointer p-6
+                                        ${activeCardId === item.id 
+                                            ? '!border-hanko !bg-white !scale-105 !shadow-2xl !z-30 !ring-4 !ring-hanko/30 -translate-y-2' 
+                                            : 'hover:border-hanko/30 hover:-translate-y-1 hover:shadow-lg'}`} 
+                                    onClick={() => speak(item.ja)}
+                                >
+                                    <div className={`text-3xl font-jp font-bold mb-2 transition-colors ${activeCardId === item.id ? 'text-hanko' : 'text-ink'}`}>{item.ja}</div>
                                     <div className="text-hanko font-medium mb-3">{item.romaji}</div>
                                     <div className="pt-3 border-t border-bamboo/10"><p className="text-ink/80">{item.en}</p></div>
+                                    {activeCardId === item.id && (
+                                        <div className="absolute top-2 right-2">
+                                            <Volume2 size={16} className="text-hanko animate-bounce" />
+                                        </div>
+                                    )}
                                 </GlassCard>
                             ))}
                         </div>

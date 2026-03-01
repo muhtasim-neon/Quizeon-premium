@@ -1,27 +1,17 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-  Clock, Trophy, Zap, Search, BookOpen, 
-  Gamepad2, Star, ChevronRight, Hash,
-  Cloud, Sun, Snowflake, Leaf, ExternalLink,
-  Flower2, Wind, MapPin, TrendingUp, Activity,
-  BarChart3, Sparkles, MessageSquare, ArrowRight, Brain
+  Clock, Trophy, Zap, BookOpen, 
+  Gamepad2, ChevronRight, Hash,
+  Cloud, Sun, Snowflake, Leaf,
+  Flower2, Wind, MapPin, TrendingUp,
+  Sparkles, MessageSquare, ArrowRight, Brain,
+  RefreshCw
 } from 'lucide-react';
 import { User } from '@/types';
-import { ALL_CONTENT, VOCAB_DATA, KANJI_DATA } from '@/data/mockContent';
+import { VOCAB_DATA, KANJI_DATA } from '@/data/mockContent';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GlassCard, Button, Badge, Input, ProgressRing, Skeleton, GlowCard } from '@/components/UI';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
-
-const MOCK_CHART_DATA = [
-  { name: 'Mon', xp: 400 },
-  { name: 'Tue', xp: 300 },
-  { name: 'Wed', xp: 600 },
-  { name: 'Thu', xp: 800 },
-  { name: 'Fri', xp: 500 },
-  { name: 'Sat', xp: 900 },
-  { name: 'Sun', xp: 1100 },
-];
+import { GlassCard, Button, Badge, Skeleton } from '@/components/UI';
 
 // --- HELPERS ---
 
@@ -106,8 +96,8 @@ const SenseiSuggestions = () => {
 
 // --- COMPONENTS ---
 
-// 1. Japan Status (Time & Season)
-const JapanStatus = () => {
+// 1. Dashboard Header
+const DashboardHeader = ({ user }: { user: User }) => {
   const [time, setTime] = useState(getJapanTime());
 
   useEffect(() => {
@@ -115,190 +105,64 @@ const JapanStatus = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const season = getSeason(time);
   const greeting = getGreeting(time);
-  const jpDay = getJpDay(time);
-  const era = getEra(time);
+  const season = getSeason(time);
   const SeasonIcon = season.icon;
 
   return (
-    <GlassCard className="p-0 overflow-hidden bg-white/95 border-b-4 border-bamboo/10 shadow-lg group">
-      <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-bamboo/10">
-        {/* Time Section */}
-        <div className="flex-1 p-6 flex items-center gap-6 relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 opacity-[0.03] rotate-12 group-hover:rotate-45 transition-transform duration-1000">
-            <Clock size={120} />
-          </div>
-          <div className="p-4 bg-rice rounded-3xl border-2 border-bamboo/5 shadow-inner relative z-10">
-            <Clock className="text-hanko animate-pulse" size={32} />
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-hanko font-black text-lg">{greeting.jp}</span>
-              <span className="text-bamboo/40 text-[10px] uppercase font-bold tracking-tighter">({greeting.en})</span>
-            </div>
-            <h2 className="text-4xl font-black text-ink tabular-nums tracking-tighter leading-none mb-2">
-              {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-            </h2>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <p className="text-[10px] font-bold text-bamboo uppercase tracking-widest flex items-center gap-1.5">
-                <MapPin size={10} className="text-hanko" /> Tokyo, Japan
-              </p>
-              <div className="w-1 h-1 rounded-full bg-bamboo/20"></div>
-              <p className="text-[10px] font-bold text-hanko uppercase tracking-widest">{jpDay}</p>
-              <div className="w-1 h-1 rounded-full bg-bamboo/20"></div>
-              <p className="text-[10px] font-bold text-bamboo/60 uppercase tracking-widest">{era}</p>
-            </div>
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-hanko font-bold text-sm uppercase tracking-widest">{greeting.jp}</span>
+          <div className="w-1 h-1 rounded-full bg-bamboo/20"></div>
+          <span className="text-bamboo font-medium text-sm">{greeting.en}, {user.username}</span>
+        </div>
+        <h1 className="text-4xl font-black text-ink tracking-tight">Your Dojo Dashboard</h1>
+      </div>
+      
+      <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md p-2 pl-4 rounded-2xl border border-bamboo/10 shadow-sm">
+        <div className="text-right">
+          <div className="text-[10px] font-black text-bamboo uppercase tracking-widest">Tokyo Time • {season.name}</div>
+          <div className="text-lg font-black text-ink tabular-nums">
+            {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
           </div>
         </div>
-
-        {/* Season Section */}
-        <div className="flex-1 p-6 flex items-center gap-6 relative overflow-hidden">
-          <div className={`absolute -right-4 -bottom-4 opacity-[0.05] rotate-12 group-hover:-rotate-12 transition-transform duration-1000 ${season.color}`}>
-            <SeasonIcon size={120} />
-          </div>
-          <div className={`p-4 ${season.bg} rounded-3xl border-2 border-bamboo/5 shadow-inner relative z-10 ${season.color}`}>
-            <SeasonIcon size={32} />
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-ink font-black text-2xl">{season.jp}</span>
-              <span className="text-bamboo/40 text-[10px] uppercase font-bold tracking-tighter">({season.romaji})</span>
-              <Badge color={`${season.bg} ${season.color} border-current/10 ml-1`}>{season.name}</Badge>
-            </div>
-            <p className="text-xs font-bold text-ink/80 leading-relaxed max-w-[240px]">
-              {season.note}
-            </p>
-            <div className="mt-2 flex items-center gap-1.5">
-              <div className="flex gap-0.5">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? season.color.replace('text-', 'bg-') : 'bg-bamboo/10'}`}></div>
-                ))}
-              </div>
-              <span className="text-[9px] font-black text-bamboo/40 uppercase tracking-widest">Seasonal Insight</span>
-            </div>
-          </div>
+        <div className={`p-3 ${season.bg} ${season.color} rounded-xl border border-current/10`}>
+          <SeasonIcon size={20} />
         </div>
       </div>
-    </GlassCard>
+    </div>
   );
 };
 
-// 2. User Progress & Stats
-const UserProgress = ({ user }: { user: User }) => {
+// 2. Stats Overview
+const StatsOverview = ({ user }: { user: User }) => {
   const xp = user.xp || 0;
   const level = Math.floor(xp / 1000) + 1;
-  const progress = (xp % 1000) / 10; // Percentage
+  const progress = (xp % 1000) / 10;
+
+  const stats = [
+    { label: 'Current Level', value: `Level ${level}`, icon: Trophy, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+    { label: 'Daily Streak', value: `${user.streak || 0} Days`, icon: Zap, color: 'text-orange-500', bg: 'bg-orange-50' },
+    { label: 'Words Mastered', value: '145', icon: BookOpen, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Total XP', value: `${xp.toLocaleString()}`, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  ];
 
   return (
-    <GlassCard hoverEffect className="p-6 bg-white/95 border-b-4 border-bamboo/10 shadow-lg h-full flex flex-col justify-center relative overflow-hidden group">
-      <div className="absolute -right-6 -top-6 w-32 h-32 bg-hanko/5 rounded-full blur-2xl group-hover:bg-hanko/10 transition-colors"></div>
-      
-      <div className="flex items-center gap-6 mb-6">
-        <ProgressRing progress={progress} size={100} strokeWidth={8} />
-        <div className="text-left">
-          <div className="flex items-center gap-2 mb-1">
-            <Trophy className="text-yellow-500" size={18} />
-            <h3 className="font-black text-2xl text-ink">Level {level}</h3>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {stats.map((stat, i) => (
+        <GlassCard key={i} className="p-4 border-b-2 border-bamboo/5 hover:border-bamboo/20 transition-all">
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 ${stat.bg} ${stat.color} rounded-xl`}>
+              <stat.icon size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-bamboo uppercase tracking-widest">{stat.label}</p>
+              <p className="text-lg font-black text-ink">{stat.value}</p>
+            </div>
           </div>
-          <p className="text-[10px] font-black text-bamboo uppercase tracking-widest">Apprentice Rank</p>
-          <div className="mt-2 flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-[9px] font-bold text-emerald-600 uppercase">Online Now</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-rice/50 p-3 rounded-2xl border border-bamboo/5">
-          <div className="flex items-center gap-2 mb-1">
-            <Zap className="text-orange-500" size={14} />
-            <span className="text-[10px] font-black text-bamboo uppercase tracking-tighter">Streak</span>
-          </div>
-          <span className="text-xl font-black text-ink">{user.streak || 0} Days</span>
-        </div>
-        <div className="bg-rice/50 p-3 rounded-2xl border border-bamboo/5">
-          <div className="flex items-center gap-2 mb-1">
-            <BookOpen className="text-blue-500" size={14} />
-            <span className="text-[10px] font-black text-bamboo uppercase tracking-tighter">Words</span>
-          </div>
-          <span className="text-xl font-black text-ink">145</span>
-        </div>
-      </div>
-    </GlassCard>
-  );
-};
-
-// 3. Dictionary
-const Dictionary = () => {
-  const [query, setQuery] = useState('');
-  const results = useMemo(() => {
-    if (!query) return [];
-    return ALL_CONTENT.filter(item => 
-      item.ja.includes(query) || 
-      item.romaji.toLowerCase().includes(query.toLowerCase()) || 
-      item.en.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 5);
-  }, [query]);
-
-  return (
-    <div className="bg-white rounded-[32px] p-6 border-2 border-b-4 border-bamboo/10 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Search className="text-blue-500" size={20} />
-        <h3 className="font-bold text-lg text-ink">Japanese Dictionary</h3>
-      </div>
-      <div className="relative mb-4">
-        <Input 
-          placeholder="Search Kanji, Vocab, or English..." 
-          value={query} 
-          onChange={(e) => setQuery(e.target.value)}
-          className="bg-rice border-bamboo/10 focus:border-blue-400"
-        />
-      </div>
-      <div className="space-y-2 min-h-[120px]">
-        <AnimatePresence mode="popLayout">
-          {query === '' ? (
-            <motion.div 
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-center py-8 text-bamboo/40 text-sm italic"
-            >
-              Type to search the database...
-            </motion.div>
-          ) : results.length === 0 ? (
-            <motion.div 
-              key="no-results"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-center py-8 text-bamboo/40 text-sm"
-            >
-              No results found.
-            </motion.div>
-          ) : (
-            results.map(item => (
-              <motion.div 
-                key={item.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                className="flex justify-between items-center p-3 bg-rice rounded-xl border border-bamboo/5 hover:border-blue-200 transition-colors group cursor-pointer"
-              >
-                <div>
-                  <span className="text-lg font-bold text-ink group-hover:text-blue-600 transition-colors">{item.ja}</span>
-                  <span className="text-xs text-bamboo ml-2">({item.romaji})</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-blue-600">{item.en}</span>
-                  <ExternalLink size={14} className="text-bamboo/30 group-hover:text-blue-400" />
-                </div>
-              </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </div>
+        </GlassCard>
+      ))}
     </div>
   );
 };
@@ -340,8 +204,20 @@ const LastGames = () => {
 
 // 5. Daily Lists (Vocab & Kanji)
 const DailyLists = () => {
-  const vocab = useMemo(() => VOCAB_DATA.slice(0, 10), []);
-  const kanji = useMemo(() => KANJI_DATA.slice(0, 5), []);
+  const [vocab, setVocab] = useState<any[]>([]);
+  const [kanji, setKanji] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refreshLists = () => {
+    setIsRefreshing(true);
+    setVocab([...VOCAB_DATA].sort(() => Math.random() - 0.5).slice(0, 10));
+    setKanji([...KANJI_DATA].sort(() => Math.random() - 0.5).slice(0, 5));
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
+
+  useEffect(() => {
+    refreshLists();
+  }, []);
 
   const container = {
     hidden: { opacity: 0 },
@@ -361,13 +237,22 @@ const DailyLists = () => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
       {/* Vocabulary */}
-      <div className="bg-white rounded-[32px] p-6 border-2 border-b-4 border-bamboo/10 shadow-sm">
+      <div className="bg-white rounded-[32px] p-6 border-2 border-b-4 border-bamboo/10 shadow-sm relative overflow-hidden">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <BookOpen className="text-emerald-500" size={20} />
             <h3 className="font-bold text-lg text-ink">Daily Vocabulary</h3>
           </div>
-          <Badge color="bg-emerald-50 text-emerald-600 border-emerald-100">10 Items</Badge>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={refreshLists}
+              className="p-1.5 hover:bg-rice rounded-lg text-bamboo hover:text-hanko transition-all"
+              title="Refresh List"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            </button>
+            <Badge color="bg-emerald-50 text-emerald-600 border-emerald-100">10 Items</Badge>
+          </div>
         </div>
         <motion.div 
           variants={container}
@@ -392,13 +277,22 @@ const DailyLists = () => {
       </div>
 
       {/* Kanji */}
-      <div className="bg-white rounded-[32px] p-6 border-2 border-b-4 border-bamboo/10 shadow-sm">
+      <div className="bg-white rounded-[32px] p-6 border-2 border-b-4 border-bamboo/10 shadow-sm relative overflow-hidden">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <Hash className="text-orange-500" size={20} />
             <h3 className="font-bold text-lg text-ink">Focus Kanji</h3>
           </div>
-          <Badge color="bg-orange-50 text-orange-600 border-orange-100">5 Items</Badge>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={refreshLists}
+              className="p-1.5 hover:bg-rice rounded-lg text-bamboo hover:text-hanko transition-all"
+              title="Refresh List"
+            >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            </button>
+            <Badge color="bg-orange-50 text-orange-600 border-orange-100">5 Items</Badge>
+          </div>
         </div>
         <motion.div 
           variants={container}
@@ -458,104 +352,32 @@ export const UserDashboard: React.FC<{ user: User }> = ({ user }) => {
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-7xl mx-auto space-y-8 pb-12 px-4 md:px-0"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-7xl mx-auto pb-12 px-4 md:px-0"
     >
-      {/* Bento Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Row 1: Status & Progress */}
-        <div className="md:col-span-2 lg:col-span-2">
-          <JapanStatus />
-        </div>
-        <div className="md:col-span-2 lg:col-span-2">
-          <UserProgress user={user} />
-        </div>
+      <DashboardHeader user={user} />
+      
+      <div className="space-y-6">
+        {/* Stats Overview */}
+        <StatsOverview user={user} />
 
-        {/* Row 2: Daily Challenge & Sensei */}
-        <div className="md:col-span-2 lg:col-span-2">
-          <GlowCard className="h-full bg-gradient-to-br from-hanko to-orange-600 text-white border-none min-h-[240px]">
-            <div className="relative z-10 flex flex-col h-full justify-center p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="text-yellow-300 fill-yellow-300" size={24} />
-                <span className="text-xs font-black uppercase tracking-[0.2em]">Daily Challenge</span>
-              </div>
-              <h3 className="text-4xl font-black mb-3 leading-tight">Master N5 Kanji</h3>
-              <p className="text-base text-white/80 mb-8 leading-relaxed max-w-md">
-                You're only 25 Kanji away from your next milestone! Ready to push your limits today?
-              </p>
-              <div className="mt-auto max-w-xs">
-                <Button magnetic className="w-full bg-white text-hanko border-none hover:bg-rice font-black py-5 shadow-2xl text-lg">
-                  START SESSION <ChevronRight className="ml-2" size={24} />
-                </Button>
-              </div>
-            </div>
-          </GlowCard>
-        </div>
-        <div className="md:col-span-1 lg:col-span-1">
-          <GlassCard className="h-full">
-            <SenseiSuggestions />
-          </GlassCard>
-        </div>
-        <div className="md:col-span-1 lg:col-span-1">
-          <Dictionary />
-        </div>
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Primary Actions & Progress */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Daily Lists */}
+            <DailyLists />
+          </div>
 
-        {/* Row 3: Progress Chart & Lists */}
-        <div className="md:col-span-2 lg:col-span-2">
-          <GlassCard className="h-full">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="text-hanko" size={20} />
-                <h3 className="font-bold text-lg text-ink">Weekly XP Progress</h3>
-              </div>
-              <Badge color="bg-hanko/10 text-hanko border-hanko/20">Live Stats</Badge>
-            </div>
-            <div className="h-[200px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={MOCK_CHART_DATA}>
-                  <defs>
-                    <linearGradient id="colorXp" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#bc2f32" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#bc2f32" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 10, fontWeight: 'bold', fill: '#795548' }} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '16px', 
-                      border: 'none', 
-                      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                      backgroundColor: '#fff',
-                      fontSize: '12px',
-                      fontWeight: 'bold'
-                    }} 
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="xp" 
-                    stroke="#bc2f32" 
-                    strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorXp)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </GlassCard>
-        </div>
-        <div className="md:col-span-2 lg:col-span-2">
-          <DailyLists />
-        </div>
+          {/* Right Column: Tools & Insights */}
+          <div className="space-y-6">
+            <GlassCard className="p-6">
+              <SenseiSuggestions />
+            </GlassCard>
 
-        {/* Row 4: Recent Activity */}
-        <div className="md:col-span-2 lg:col-span-4">
-          <LastGames />
+            <LastGames />
+          </div>
         </div>
       </div>
     </motion.div>

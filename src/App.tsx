@@ -35,49 +35,44 @@ function App() {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        if (firebaseUser.emailVerified) {
-          // User is signed in and verified, fetch profile from Firestore
-          const userRef = doc(db, 'users', firebaseUser.uid);
-          
-          const unsubDoc = onSnapshot(userRef, (docSnap) => {
-            if (docSnap.exists()) {
-              const userData = docSnap.data() as User;
-              setUser(userData);
-              localStorage.setItem('quizeon_user', JSON.stringify(userData));
-            }
-            setLoading(false);
-          });
-
-          if (intervalId) clearInterval(intervalId);
-          return () => {
-            unsubDoc();
-            if (intervalId) clearInterval(intervalId);
-          };
-        } else {
-          // User is signed in but NOT verified
-          setUser(null);
-          localStorage.removeItem('quizeon_user');
+        // User is signed in, fetch profile from Firestore
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        
+        const unsubDoc = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const userData = docSnap.data() as User;
+            setUser(userData);
+            localStorage.setItem('quizeon_user', JSON.stringify(userData));
+          }
           setLoading(false);
+        }, (error) => {
+          console.error("Firestore Snapshot Error:", error.code, error.message);
+          if (error.code === 'permission-denied') {
+            // This often happens if the user document hasn't been created yet
+            // or if Firestore Security Rules are too strict (e.g., requiring email verification)
+            console.warn("Permission denied. If you just signed up, this is normal while your profile is being created.");
+          }
+          setLoading(false);
+        });
 
-          // Start polling for verification status
-          if (!intervalId) {
-            intervalId = setInterval(async () => {
-              await firebaseUser.reload();
-              if (firebaseUser.emailVerified) {
-                // This will trigger the onAuthStateChanged listener again with verified status
-                // Or we can manually trigger a state refresh by calling the listener logic
-                // Actually, Firebase Auth usually triggers onAuthStateChanged after reload if status changes
-                // but to be safe, we can just let the next interval or a manual refresh handle it.
-                // Most reliable: window.location.reload() or just wait for Firebase to sync.
-                // Let's just clear interval and wait for the next auth state change.
-                clearInterval(intervalId);
-              }
-            }, 3000);
+        return () => {
+          unsubDoc();
+        };
+      } else {
+        // User is signed out from Firebase
+        if (intervalId) clearInterval(intervalId);
+        
+        // Check if there's a guest user in localStorage
+        const stored = localStorage.getItem('quizeon_user');
+        if (stored) {
+          const userData = JSON.parse(stored) as User;
+          if (userData.isGuest) {
+            setUser(userData);
+            setLoading(false);
+            return;
           }
         }
-      } else {
-        // User is signed out
-        if (intervalId) clearInterval(intervalId);
+
         setUser(null);
         localStorage.removeItem('quizeon_user');
         setLoading(false);
@@ -140,8 +135,8 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/dashboard" element={<UserDashboard user={user} />} />
             <Route path="/checklist" element={<Checklist />} />
-            <Route path="/learning" element={<LearningHub />} />
-            <Route path="/games" element={<Games />} />
+            <Route path="/learning" element={<LearningHub user={user} />} />
+            <Route path="/games" element={<Games user={user} />} />
             <Route path="/sensei" element={<SenseiDojo />} />
             <Route path="/reading" element={<ReadingRoom />} />
             <Route path="/mistakes" element={<Mistakes />} />
